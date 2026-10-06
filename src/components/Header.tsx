@@ -51,11 +51,13 @@ export default function Header() {
           bookingOpen && "pointer-events-none opacity-0",
         )}
       >
-        <div className="mx-auto flex h-[88px] max-w-[1440px] items-center justify-between px-5 md:px-8 lg:h-[110px] lg:px-12">
+        <div className="mx-auto flex h-[108px] max-w-[1440px] items-center justify-between px-5 md:h-[112px] md:px-8 lg:h-[136px] lg:px-12">
           <Logo
             onClick={() => go("home")}
             withText={false}
-            markClassName="h-14 w-auto md:h-16"
+            /* A clear ring of dark air between the mark and its halo. */
+            ringGap="0.85rem"
+            markClassName="h-[4.25rem] w-auto md:h-20 lg:h-[5.5rem]"
           />
 
           <nav className="hidden items-center gap-9 lg:flex" aria-label="ناوبری اصلی">

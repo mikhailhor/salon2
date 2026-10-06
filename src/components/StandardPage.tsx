@@ -107,7 +107,7 @@ function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
 export function ServicesBlock() {
   const { openBooking } = useSalon();
   return (
-    <section id="services" className="scroll-mt-24 bg-ink-2 py-24 md:py-32">
+    <section id="services" className="scroll-mt-28 lg:scroll-mt-40 bg-ink-2 py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <div className="mb-16 flex flex-col items-start justify-between gap-6 text-right md:flex-row md:items-end">
           <div><SectionLabel className="mb-5">آتلیه</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-6xl">خدمات</h2></div>
@@ -130,7 +130,7 @@ export function ServicesBlock() {
 
 export function JourneyBlock() {
   return (
-    <section id="ritual" className="scroll-mt-24 bg-ink py-24 md:py-32">
+    <section id="ritual" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <SectionLabel className="mb-5">مسیر</SectionLabel>
         <h2 className="mb-16 max-w-[16ch] font-serif text-4xl font-light text-ivory sm:text-6xl">از رزرو تا زیبایی</h2>
@@ -171,7 +171,7 @@ export function AppointmentCta() {
 export function AboutSection() {
   const { openBooking } = useSalon();
   return (
-    <section id="about" className="scroll-mt-24 bg-ink py-24 md:py-32">
+    <section id="about" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto grid max-w-[1440px] items-center gap-14 px-5 md:grid-cols-2 md:px-8 lg:px-12">
         <div className="relative aspect-[4/5] overflow-hidden"><img src={IMAGES.interior} alt="فضای داخلی لیندا در شب" className="h-full w-full object-cover" loading="lazy" /></div>
         <div className="max-w-lg text-right"><SectionLabel className="mb-6">درباره ما</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-5xl">درباره لیندا</h2><p className="mt-8 text-sm leading-relaxed text-ivory-2/95">یک مزون، نه یک بازار شلوغ. روز را خلوت نگه می‌داریم تا کار بزرگ‌تر باشد؛ چند سیتینگ، چند هنرمند و یک آدرس در قلب صادقیه.</p><p className="mt-5 text-sm leading-relaxed text-ivory-2/90">مو مثل یک ترکیب‌بندی کوتاه می‌شود، رنگ مثل نور نقاشی می‌شود و میکاپ معماری چهره است. عروس، تئاتری خصوصی است؛ شما همان خودتان می‌روید، فقط شفاف‌تر.</p><GoldButton type="button" onClick={() => openBooking()} className="mt-10">اطلاعات بیشتر</GoldButton></div>

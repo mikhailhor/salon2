@@ -26,11 +26,18 @@ export function Logo({
   markClassName,
   onClick,
   withText = true,
+  /**
+   * Distance between the edge of the mark and the glowing circle around it.
+   * Any CSS length works, so a caller can dial the breathing room per place
+   * (the header wants more air than the footer).
+   */
+  ringGap = "1rem",
 }: {
   className?: string;
   markClassName?: string;
   onClick?: () => void;
   withText?: boolean;
+  ringGap?: string;
 }) {
   return (
     <button
@@ -42,11 +49,13 @@ export function Logo({
     >
       <span className="relative flex items-center justify-center">
         <span
-          className="logo-neon absolute -inset-4 rounded-full"
+          className="logo-neon absolute rounded-full"
+          style={{ inset: `calc(-1 * ${ringGap})` }}
           aria-hidden="true"
         />
         <span
-          className="logo-neon-core absolute -inset-1 rounded-full"
+          className="logo-neon-core absolute rounded-full"
+          style={{ inset: `calc(-1 * ${ringGap} + 2px)` }}
           aria-hidden="true"
         />
         <img
