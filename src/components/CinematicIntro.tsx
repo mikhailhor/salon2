@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 export default function CinematicIntro() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +24,12 @@ export default function CinematicIntro() {
       // target: the header logo, anchored top-right (RTL).
       const cornerX = w - (desktop ? 101 : 66);
       const cornerY = desktop ? 55 : 50;
-      const endScale = desktop ? 0.2 : 0.21875;
+      // End scale is derived from the rendered sizes rather than hard-coded,
+      // so the mark always lands exactly on the header logo — even when the
+      // intro logo is capped by a narrow viewport.
+      const headerMark = w >= 768 ? 64 : 56;
+      const introMark = imgRef.current?.offsetHeight || (desktop ? 384 : 288);
+      const endScale = headerMark / introMark;
       const dx = (cornerX - w / 2) * pe;
       const dy = (cornerY - h / 2) * pe;
       const s = 1 - pe * (1 - endScale);
@@ -66,17 +72,18 @@ export default function CinematicIntro() {
         <div ref={logoRef} className="will-change-transform">
           <div className="relative flex items-center justify-center">
             <span
-              className="logo-neon absolute -inset-10 rounded-full"
+              className="logo-neon absolute -inset-5 rounded-full md:-inset-6"
               aria-hidden="true"
             />
             <span
-              className="logo-neon-core absolute -inset-4 rounded-full"
+              className="logo-neon-core absolute -inset-3 rounded-full md:-inset-4"
               aria-hidden="true"
             />
             <img
+              ref={imgRef}
               src="/logo.png"
               alt=""
-              className="logo-neon-img relative h-64 w-auto object-contain md:h-80"
+              className="logo-neon-img relative h-[min(18rem,74vw)] w-auto object-contain md:h-96"
             />
           </div>
         </div>
