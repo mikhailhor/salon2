@@ -21,13 +21,17 @@ export default function CinematicIntro() {
       const w = window.innerWidth;
       const h = window.innerHeight;
       const desktop = w >= 1024;
+      const medium = w >= 768;
       // target: the header logo, anchored top-right (RTL).
-      const cornerX = w - (desktop ? 101 : 66);
-      const cornerY = desktop ? 55 : 50;
+      // Header paddings: px-5 / md:px-8 / lg:px-12.
+      const pad = desktop ? 48 : medium ? 32 : 20;
       // End scale is derived from the rendered sizes rather than hard-coded,
       // so the mark always lands exactly on the header logo — even when the
       // intro logo is capped by a narrow viewport.
-      const headerMark = w >= 768 ? 64 : 56;
+      const headerMark = desktop ? 88 : medium ? 80 : 68;
+      const cornerX = w - pad - headerMark / 2;
+      // Half of the header height: h-[108px] / md:h-[112px] / lg:h-[136px].
+      const cornerY = desktop ? 68 : medium ? 56 : 54;
       const introMark = imgRef.current?.offsetHeight || (desktop ? 384 : 288);
       const endScale = headerMark / introMark;
       const dx = (cornerX - w / 2) * pe;
