@@ -16,4 +16,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  server: {
+    host: true,
+    // The dev server is previewed through a proxy host, not from localhost.
+    allowedHosts: [".e2b.app", ".localhost"],
+  },
 });

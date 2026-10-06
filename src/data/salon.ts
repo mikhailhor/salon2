@@ -13,6 +13,9 @@ export const IMAGES = {
 
 export const ALL_IMAGES = Object.values(IMAGES);
 
+/** Shared background clip: scrubbed by the cinematic track, played natively elsewhere. */
+export const CINEMATIC_VIDEO = "/cinematic2.mp4";
+
 export function toFaDigits(value: number | string) {
   return String(value).replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
 }

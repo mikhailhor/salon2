@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { ALL_IMAGES, BRAND } from "@/data/salon";
 import { Mark } from "@/components/primitives";
 import { useSalon } from "@/context/SalonContext";
+import { prefersLightData, useIsTouch } from "@/hooks/useMedia";
 
 export default function Preloader() {
   const { setLoaded, reducedMotion } = useSalon();
+  const touch = useIsTouch();
   const [progress, setProgress] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
@@ -13,31 +15,42 @@ export default function Preloader() {
     let mounted = true;
     const started = performance.now();
 
+    /**
+     * Warming the cache is nice on wifi and rude on a phone hotspot, and it
+     * must never hold the visitor hostage: the curtain lifts after `cap` at the
+     * latest, no matter how many images are still in flight.
+     */
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const cap = reducedMotion ? 250 : touch ? 2400 : 4200;
+
     const load = async () => {
       let done = 0;
-      await Promise.all(
-        ALL_IMAGES.map(
-          (src) =>
-            new Promise<void>((resolve) => {
-              const img = new Image();
-              img.onload = () => {
-                done += 1;
-                if (mounted) setProgress(done / ALL_IMAGES.length);
-                resolve();
-              };
-              img.onerror = () => {
-                done += 1;
-                if (mounted) setProgress(done / ALL_IMAGES.length);
-                resolve();
-              };
-              img.src = src;
-            }),
-        ),
-      );
+      const warm =
+        prefersLightData() || ALL_IMAGES.length === 0
+          ? Promise.resolve()
+          : Promise.all(
+              ALL_IMAGES.map(
+                (src) =>
+                  new Promise<void>((resolve) => {
+                    const img = new Image();
+                    const settle = () => {
+                      done += 1;
+                      if (mounted) setProgress(done / ALL_IMAGES.length);
+                      resolve();
+                    };
+                    img.onload = settle;
+                    img.onerror = settle;
+                    img.src = src;
+                  }),
+              ),
+            ).then(() => undefined);
+
+      await Promise.race([warm, wait(cap)]);
+      if (!mounted) return;
+      setProgress(1);
 
       const min = reducedMotion ? 200 : 1600;
-      const wait = Math.max(0, min - (performance.now() - started));
-      await new Promise((r) => setTimeout(r, wait));
+      await wait(Math.max(0, min - (performance.now() - started)));
       if (!mounted) return;
       setLeaving(true);
       setLoaded(true);
