@@ -74,7 +74,13 @@ export default function Header() {
 
           <div className="flex items-center gap-3 md:gap-5">
             {cinematicSupported && (
-              <CinematicToggle on={cinematic} onChange={setCinematic} />
+              <CinematicToggle
+                on={cinematic}
+                onChange={setCinematic}
+                /* On a phone the header only has room for the switch itself;
+                   the labelled row lives in the mobile menu. */
+                compact
+              />
             )}
             <GoldButton
               type="button"
@@ -126,6 +132,14 @@ export default function Header() {
               {item.label}
             </button>
           ))}
+          {cinematicSupported && (
+            <div className="mt-6 flex items-center justify-between border-b border-white/8 py-4">
+              <span className="text-[13px] font-bold tracking-[0.28em] text-ivory/80 uppercase">
+                تجربه سینمایی
+              </span>
+              <CinematicToggle on={cinematic} onChange={setCinematic} />
+            </div>
+          )}
           <GoldButton
             type="button"
             onClick={() => {
@@ -145,9 +159,11 @@ export default function Header() {
 function CinematicToggle({
   on,
   onChange,
+  compact = false,
 }: {
   on: boolean;
   onChange: (v: boolean) => void;
+  compact?: boolean;
 }) {
   return (
     <button
@@ -157,9 +173,17 @@ function CinematicToggle({
       aria-label="حالت سینمایی"
       data-cursor="کاوش"
       onClick={() => onChange(!on)}
-      className="flex items-center gap-3"
+      className={cn(
+        "flex items-center gap-3",
+        compact && "-mr-1 p-1",
+      )}
     >
-      <span className="text-[16px] font-bold tracking-[0.28em] text-ivory/90 uppercase">
+      <span
+        className={cn(
+          "text-[16px] font-bold tracking-[0.28em] text-ivory/90 uppercase",
+          compact && "hidden lg:inline",
+        )}
+      >
         حالت سینمایی
       </span>
       <span

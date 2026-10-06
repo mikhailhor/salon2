@@ -7,10 +7,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useIsMobile, usePrefersReducedMotion } from "@/hooks/useMedia";
+import { useCinematicCapable, usePrefersReducedMotion } from "@/hooks/useMedia";
 
-/** Below this width the pinned cinematic track is never used. */
-export const CINEMATIC_MIN_WIDTH = 1024;
+/**
+ * Minimum viewport height for the pinned cinematic track. Phones and tablets
+ * are supported; only viewports too short for a full-screen scene (landscape
+ * phones, split-screen windows) fall back to the standard page.
+ */
+export const CINEMATIC_MIN_HEIGHT = 480;
 
 export interface BookingDraft {
   serviceId: string | null;
@@ -56,18 +60,19 @@ const SalonContext = createContext<SalonContextValue | null>(null);
 
 export function SalonProvider({ children }: { children: ReactNode }) {
   const reducedMotion = usePrefersReducedMotion();
-  const smallViewport = useIsMobile(CINEMATIC_MIN_WIDTH);
+  const capable = useCinematicCapable();
   const [cinematicPref, setCinematicPref] = useState(true);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [booking, setBookingState] = useState<BookingDraft>(EMPTY_BOOKING);
   const [loaded, setLoaded] = useState(false);
 
   /**
-   * Small screens get the responsive, natively scrolling page: the pinned
-   * cinematic track is never rendered there, and the stored desktop
-   * preference is not carried over to them.
+   * Cinematic mode runs on every device class — phone, tablet and desktop —
+   * in a form tuned for the input it gets (scroll-scrubbed video on desktop,
+   * native playback on touch). Only viewports too short to show a scene drop
+   * back to the natively scrolling page.
    */
-  const cinematicSupported = !smallViewport;
+  const cinematicSupported = capable;
   const cinematic = cinematicPref && cinematicSupported;
 
   useEffect(() => {

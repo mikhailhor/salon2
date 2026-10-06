@@ -33,9 +33,26 @@ export function usePrefersReducedMotion() {
   return useMediaQuery("(prefers-reduced-motion: reduce)");
 }
 
-/** Small screens — cinematic mode is never used here. */
+/** Small screens (phones in portrait, narrow tablets). */
 export function useIsMobile(bp = 1024) {
   return useMediaQuery(`(max-width: ${bp - 1}px)`);
+}
+
+/** Tablet-ish range: wider than a phone, narrower than a laptop. */
+export function useIsTablet() {
+  return useMediaQuery("(min-width: 640px) and (max-width: 1023px)");
+}
+
+/**
+ * Can this viewport host the pinned cinematic track?
+ *
+ * It now runs on phones and tablets too — the only hard stop is a viewport
+ * that is too short for a full-screen scene to read at all (a phone held in
+ * landscape, a split-screen window), where the natively scrolling page is a
+ * better experience.
+ */
+export function useCinematicCapable() {
+  return useMediaQuery("(min-width: 320px) and (min-height: 480px)");
 }
 
 /** Touch input is available (phones, tablets, touch laptops, touch screens). */
