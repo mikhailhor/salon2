@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   CINEMATIC_SCENES,
   CINEMATIC_SERVICES,
+  CINEMATIC_VIDEO,
   IMAGES,
   JOURNEY,
   toFaDigits,
@@ -13,11 +14,13 @@ import {
   rangeProgress,
   useCinematicProgress,
   useIsMobile,
+  useIsTouch,
 } from "@/hooks/useMedia";
+import { useCinematicVideo } from "@/hooks/useCinematicVideo";
 import { GoldButton, RevealWords, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
-const VIDEO_SRC = "/cinematic2.mp4";
+const VIDEO_SRC = CINEMATIC_VIDEO;
 const VIDEO_FALLBACK_IMG = "/images/services/makeup.jpg";
 const NAILS_INDEX = 6;
 const VIDEO_DURATION = 15;
@@ -30,9 +33,10 @@ function progressToVideoTime(progress: number): number {
 export default function CinematicExperience() {
   const { reducedMotion, openBooking, navigateTo } = useSalon();
   const mobile = useIsMobile();
+  const touch = useIsTouch();
   const trackRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const progress = useCinematicProgress(trackRef, true, reducedMotion, mobile);
+  const progress = useCinematicProgress(trackRef, true, reducedMotion, touch);
 
   const heroOp = fadeWindow(progress, 0, 0.125, 0.04);
   const brandOp = fadeWindow(progress, 0.115, 0.245, 0.04);
@@ -90,34 +94,24 @@ export default function CinematicExperience() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeScene.id, reducedMotion]);
 
-  const videoRafRef = useRef(0);
-  useLayoutEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const target = progressToVideoTime(progress);
-    const step = () => {
-      const cur = video.currentTime;
-      const diff = target - cur;
-      if (Math.abs(diff) < 0.015) {
-        video.currentTime = target;
-        return;
-      }
-      video.currentTime = cur + diff * 0.18;
-      videoRafRef.current = requestAnimationFrame(step);
-    };
-    cancelAnimationFrame(videoRafRef.current);
-    if (Math.abs(target - video.currentTime) > 0.015) {
-      videoRafRef.current = requestAnimationFrame(step);
-    } else {
-      video.currentTime = target;
-    }
-  }, [progress]);
-
-  useEffect(() => () => cancelAnimationFrame(videoRafRef.current), []);
-
   const videoOp = reducedMotion ? 0 : 1 - clamp((progress - 0.61) / 0.04);
+  const videoTarget = progressToVideoTime(progress);
 
-  const blurAmt = (op: number) => (mobile || reducedMotion ? 0 : (1 - op) * 10);
+  /**
+   * Desktop scrubs the clip with the scroll. On touch devices seeking per
+   * frame is what breaks the scroll, so the clip simply plays — muted, looping
+   * and native — which is the smoothest possible "video showcase" there.
+   */
+  useCinematicVideo(videoRef, {
+    mode: touch ? "play" : "scrub",
+    targetTime: videoTarget,
+    active: !reducedMotion && videoOp > 0.02,
+    enabled: !reducedMotion,
+    duration: VIDEO_DURATION,
+  });
+
+  const blurAmt = (op: number) =>
+    mobile || touch || reducedMotion ? 0 : (1 - op) * 10;
   const ken = (local: number) => (reducedMotion ? 1 : 1.04 + local * (mobile ? 0.03 : 0.06));
 
   const goScene = (start: number) => {
@@ -137,7 +131,10 @@ export default function CinematicExperience() {
       className="relative h-[960vh] bg-ink"
       aria-label="معرفی سینمایی لیندا"
     >
-      <div id="home" className="sticky top-0 h-screen overflow-hidden bg-ink">
+      <div
+        id="home"
+        className="cinematic-stage sticky top-0 h-screen overflow-hidden bg-ink"
+      >
         <div className="pointer-events-none absolute top-0 left-0 z-30 h-[2px] w-full bg-white/5">
           <div
             className="h-full bg-champagne"
@@ -150,14 +147,16 @@ export default function CinematicExperience() {
             ref={videoRef}
             src={VIDEO_SRC}
             poster={VIDEO_FALLBACK_IMG}
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            className="pointer-events-none absolute inset-0 h-full w-full transform-gpu object-cover"
             style={{
               opacity: videoOp,
               visibility: videoOp < 0.02 ? "hidden" : "visible",
             }}
-             muted
+            muted
             playsInline
+            disablePictureInPicture
             preload="auto"
+            aria-hidden="true"
           />
         )}
         {!reducedMotion && (

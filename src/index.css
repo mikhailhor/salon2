@@ -22,6 +22,17 @@
   html {
     background: #080808;
     color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="tab"],
+  [role="switch"] {
+    touch-action: manipulation;
   }
 
   body {
@@ -95,6 +106,21 @@
     background: #2a241c;
     border-radius: 99px;
   }
+}
+
+/*
+ * The pinned cinematic track owns the scroll gesture. Pull-to-refresh and
+ * rubber-banding mid-scene are what make a touch drag feel broken there, so
+ * they are suppressed only while that mode is on.
+ */
+html.cinematic-active,
+html.cinematic-active body {
+  overscroll-behavior-y: none;
+}
+
+/* Isolates the pinned stage: scenes repaint inside it, not the whole page. */
+.cinematic-stage {
+  contain: paint;
 }
 
 html.is-cursor-hidden,
@@ -304,10 +330,18 @@ html.is-cursor-hidden select {
   }
 }
 
-@media (max-width: 768px) {
+/*
+ * The grain is a full-viewport animated layer with a blend mode: lovely on a
+ * desktop GPU, an extra cost on every touch frame. Touch devices get a static,
+ * much cheaper version.
+ */
+@media (max-width: 1024px), (hover: none), (pointer: coarse) {
   .film-grain {
     opacity: 0.03;
     animation: none;
+    /* A blended full-screen layer is composited on every scroll frame; the
+       texture stays, the compositing cost does not. */
+    mix-blend-mode: normal;
   }
 }
 

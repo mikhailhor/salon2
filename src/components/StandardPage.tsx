@@ -1,15 +1,25 @@
-import { CINEMATIC_SERVICES, IMAGES, JOURNEY, STYLISTS } from "@/data/salon";
+import { useEffect, useRef, useState } from "react";
+import {
+  CINEMATIC_SERVICES,
+  CINEMATIC_VIDEO,
+  IMAGES,
+  JOURNEY,
+  STYLISTS,
+} from "@/data/salon";
 import { useSalon } from "@/context/SalonContext";
+import { useVideoAllowed } from "@/hooks/useMedia";
+import { useCinematicVideo } from "@/hooks/useCinematicVideo";
 import { GoldButton, GhostButton, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
 export function StorySections() {
-  const { openBooking, navigateTo } = useSalon();
+  const { openBooking, navigateTo, reducedMotion } = useSalon();
 
   return (
     <>
-      <section id="home" className="relative flex min-h-screen items-end overflow-hidden bg-ink md:items-center">
+      <section id="home" className="relative flex min-h-[100svh] items-end overflow-hidden bg-ink md:min-h-screen md:items-center">
         <img src={IMAGES.hero} alt="پرتره ادیتوریال از مهمان لیندا" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 18%" }} fetchPriority="high" />
+        <HeroVideo reducedMotion={reducedMotion} />
         <div className="absolute inset-0 bg-gradient-to-l from-ink/82 via-ink/40 to-transparent" />
         <div className="vignette absolute inset-0" />
         <div className="relative z-10 max-w-[1440px] px-6 py-28 text-right md:mr-auto md:px-16 lg:px-24">
@@ -38,6 +48,59 @@ export function StorySections() {
       <ServicesBlock />
       <JourneyBlock />
     </>
+  );
+}
+
+/**
+ * Muted, looping background clip for the standard hero (small screens and
+ * anyone who turned cinematic mode off).
+ *
+ * Native playback only — no seeking, no scroll coupling — so it stays smooth
+ * on a phone. It is skipped on data saver, 2g/3g and reduced motion, and the
+ * poster frame is the hero image itself, so the layout never waits for it.
+ */
+function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
+  const { loaded } = useSalon();
+  const ref = useRef<HTMLVideoElement | null>(null);
+  const [ready, setReady] = useState(false);
+  const [armed, setArmed] = useState(false);
+
+  // Wait for the curtain (and the hero image behind it) before spending
+  // bandwidth on the clip — with a hard deadline in case anything stalls.
+  useEffect(() => {
+    const t = window.setTimeout(() => setArmed(true), 3200);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const allowed = useVideoAllowed(reducedMotion) && (loaded || armed);
+
+  useCinematicVideo(ref, {
+    mode: "play",
+    active: allowed,
+    enabled: allowed,
+  });
+
+  if (!allowed) return null;
+
+  return (
+    <video
+      ref={ref}
+      src={CINEMATIC_VIDEO}
+      poster={IMAGES.hero}
+      muted
+      loop
+      playsInline
+      autoPlay
+      preload="auto"
+      disablePictureInPicture
+      aria-hidden="true"
+      onLoadedData={() => setReady(true)}
+      className={cn(
+        "absolute inset-0 h-full w-full transform-gpu object-cover transition-opacity duration-1000",
+        ready ? "opacity-100" : "opacity-0",
+      )}
+      style={{ objectPosition: "center 18%" }}
+    />
   );
 }
 
@@ -120,5 +183,17 @@ export function AboutSection() {
 
 export function MobileBookBar() {
   const { openBooking, bookingOpen } = useSalon();
-  return <div className={cn("fixed right-0 bottom-0 left-0 z-40 border-t border-white/10 bg-ink/90 p-3 backdrop-blur-md lg:hidden", bookingOpen && "hidden")}><GoldButton type="button" onClick={() => openBooking()} className="w-full">رزرو نوبت</GoldButton></div>;
+  return (
+    <div
+      className={cn(
+        "fixed right-0 bottom-0 left-0 z-40 border-t border-white/10 bg-ink/90 px-3 pt-3 backdrop-blur-md lg:hidden",
+        "pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]",
+        bookingOpen && "hidden",
+      )}
+    >
+      <GoldButton type="button" onClick={() => openBooking()} className="w-full">
+        رزرو نوبت
+      </GoldButton>
+    </div>
+  );
 }

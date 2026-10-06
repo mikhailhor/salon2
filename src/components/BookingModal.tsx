@@ -123,14 +123,14 @@ export default function BookingModal() {
       aria-label="رزرو نوبت"
     >
       <div className="absolute inset-0 bg-ink/85 backdrop-blur-sm" onClick={closeBooking} />
-      <div className="absolute inset-0 overflow-y-auto md:inset-6 md:overflow-hidden lg:inset-10">
+      <div className="absolute inset-0 overscroll-contain overflow-y-auto md:inset-6 md:overflow-hidden lg:inset-10">
         <div className="relative min-h-full bg-ink md:flex md:min-h-full md:overflow-hidden md:border md:border-white/10">
           <button
             ref={closeRef}
             type="button"
             aria-label="بستن رزرو"
             onClick={closeBooking}
-            className="absolute top-4 right-4 z-20 text-ivory"
+            className="fixed top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-ink/60 text-ivory backdrop-blur-sm md:absolute md:top-6 md:right-6 md:h-auto md:w-auto md:bg-transparent md:backdrop-blur-none"
             data-cursor="کاوش"
           >
             <IconClose className="h-6 w-6" />
