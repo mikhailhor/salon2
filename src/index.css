@@ -121,6 +121,27 @@ html.cinematic-active body {
 /* Isolates the pinned stage: scenes repaint inside it, not the whole page. */
 .cinematic-stage {
   contain: paint;
+  /* The track is driven by vertical scroll only: telling the compositor up
+     front keeps a finger drag on the main thread-free fast path. */
+  touch-action: pan-y;
+}
+
+/*
+ * Touch cut of the cinematic track. Phones and tablets run the same scenes,
+ * but every full-screen layer there is composited on each frame, so the
+ * expensive effects (filters, blend modes, backdrop blur) are dropped and the
+ * layers are kept to plain opacity/transform work the GPU does for free.
+ */
+@media (hover: none), (pointer: coarse) {
+  .cinematic-stage img,
+  .cinematic-stage video {
+    filter: none !important;
+    backface-visibility: hidden;
+  }
+
+  .cinematic-stage {
+    backdrop-filter: none !important;
+  }
 }
 
 html.is-cursor-hidden,

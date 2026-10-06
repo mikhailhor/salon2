@@ -15,6 +15,7 @@ import {
   useCinematicProgress,
   useIsMobile,
   useIsTouch,
+  useVideoAllowed,
 } from "@/hooks/useMedia";
 import { useCinematicVideo } from "@/hooks/useCinematicVideo";
 import { GoldButton, RevealWords, SectionLabel } from "@/components/primitives";
@@ -31,9 +32,15 @@ function progressToVideoTime(progress: number): number {
 }
 
 export default function CinematicExperience() {
-  const { reducedMotion, openBooking, navigateTo } = useSalon();
+  const { reducedMotion, openBooking, navigateTo, loaded } = useSalon();
   const mobile = useIsMobile();
   const touch = useIsTouch();
+  /**
+   * Data saver, 2g/3g and reduced motion get the still-image cut of the same
+   * film: identical scenes and copy, no video bytes and no decoding cost.
+   */
+  const videoAllowed = useVideoAllowed(reducedMotion);
+  const stills = reducedMotion || !videoAllowed;
   const trackRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progress = useCinematicProgress(trackRef, true, reducedMotion, touch);
@@ -94,7 +101,7 @@ export default function CinematicExperience() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeScene.id, reducedMotion]);
 
-  const videoOp = reducedMotion ? 0 : 1 - clamp((progress - 0.61) / 0.04);
+  const videoOp = stills ? 0 : 1 - clamp((progress - 0.61) / 0.04);
   const videoTarget = progressToVideoTime(progress);
 
   /**
@@ -105,13 +112,24 @@ export default function CinematicExperience() {
   useCinematicVideo(videoRef, {
     mode: touch ? "play" : "scrub",
     targetTime: videoTarget,
-    active: !reducedMotion && videoOp > 0.02,
-    enabled: !reducedMotion,
+    // On touch the clip waits for the curtain so it never competes with the
+    // hero imagery for the first megabytes of a mobile connection.
+    active: !stills && videoOp > 0.02 && (!touch || loaded),
+    enabled: !stills,
     duration: VIDEO_DURATION,
   });
 
   const blurAmt = (op: number) =>
     mobile || touch || reducedMotion ? 0 : (1 - op) * 10;
+  /**
+   * `undefined` rather than `blur(0px)`: an explicit filter still promotes the
+   * whole scene to its own filtered layer, which is exactly the per-frame cost
+   * phones and tablets cannot spare.
+   */
+  const blurFilter = (op: number) => {
+    const b = blurAmt(op);
+    return b > 0.05 ? `blur(${b}px)` : undefined;
+  };
   const ken = (local: number) => (reducedMotion ? 1 : 1.04 + local * (mobile ? 0.03 : 0.06));
 
   const goScene = (start: number) => {
@@ -128,12 +146,12 @@ export default function CinematicExperience() {
     <section
       id="cinematic-track"
       ref={trackRef}
-      className="relative h-[960vh] bg-ink"
+      className="relative h-[620vh] bg-ink sm:h-[760vh] lg:h-[960vh]"
       aria-label="معرفی سینمایی لیندا"
     >
       <div
         id="home"
-        className="cinematic-stage sticky top-0 h-screen overflow-hidden bg-ink"
+        className="cinematic-stage sticky top-0 h-[100svh] overflow-hidden bg-ink lg:h-screen"
       >
         <div className="pointer-events-none absolute top-0 left-0 z-30 h-[2px] w-full bg-white/5">
           <div
@@ -142,7 +160,7 @@ export default function CinematicExperience() {
           />
         </div>
 
-        {!reducedMotion && (
+        {!stills && (
           <video
             ref={videoRef}
             src={VIDEO_SRC}
@@ -155,11 +173,11 @@ export default function CinematicExperience() {
             muted
             playsInline
             disablePictureInPicture
-            preload="auto"
+            preload={touch ? "metadata" : "auto"}
             aria-hidden="true"
           />
         )}
-        {!reducedMotion && (
+        {!stills && (
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-ink/25" />
             <div className="absolute inset-0 bg-gradient-to-l from-ink/70 via-ink/15 to-ink/45" />
@@ -174,11 +192,11 @@ export default function CinematicExperience() {
             opacity: heroOp,
             visibility: heroOp < 0.02 ? "hidden" : "visible",
             pointerEvents: heroOp > 0.35 ? "auto" : "none",
-            filter: reducedMotion ? `blur(${blurAmt(heroOp)}px)` : undefined,
+            filter: blurFilter(heroOp),
           }}
           aria-hidden={heroOp < 0.2}
         >
-          {reducedMotion && (
+          {stills && (
             <img
               src={IMAGES.hero}
               alt="پرتره ادیتوریال از مهمان لیندا"
@@ -190,15 +208,15 @@ export default function CinematicExperience() {
               fetchPriority="high"
             />
           )}
-          {reducedMotion && (
+          {stills && (
             <>
               <div className="absolute inset-0 bg-gradient-to-l from-ink/80 via-ink/35 to-transparent" />
               <div className="vignette absolute inset-0" />
             </>
           )}
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-6 pb-24 text-right md:justify-center md:px-16 md:pb-0 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:justify-center md:px-16 md:pb-24 lg:px-24 lg:pb-0">
             <SectionLabel className="mb-6">آرامش زیبایی تهران</SectionLabel>
-            <h1 className="max-w-[12ch] font-serif text-5xl leading-[1.15] font-light text-ivory sm:text-7xl lg:text-8xl">
+            <h1 className="max-w-[12ch] font-serif text-[2.6rem] leading-[1.12] font-light text-ivory sm:text-6xl md:text-7xl lg:text-8xl">
               <RevealWords text="زیبایی، از نو تعریف می‌شود." active={heroOp > 0.45} />
             </h1>
             <p
@@ -213,7 +231,7 @@ export default function CinematicExperience() {
               ادیتوریال، کاملاً برای شما طراحی می‌شود.
             </p>
           </div>
-          <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3">
+          <div className="absolute bottom-[calc(7.5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3 md:bottom-24 lg:bottom-8">
             <span className="text-[15px] tracking-[0.4em] text-ivory/80 uppercase">
               اسکرول کنید
             </span>
@@ -228,11 +246,11 @@ export default function CinematicExperience() {
             opacity: brandOp,
             visibility: brandOp < 0.02 ? "hidden" : "visible",
             pointerEvents: brandOp > 0.35 ? "auto" : "none",
-            filter: reducedMotion ? `blur(${blurAmt(brandOp)}px)` : undefined,
+            filter: blurFilter(brandOp),
           }}
           aria-hidden={brandOp < 0.2}
         >
-          {reducedMotion && (
+          {stills && (
             <img
               src={IMAGES.brandModel}
               alt="مدل لیندا در نور آتلیه"
@@ -243,13 +261,13 @@ export default function CinematicExperience() {
               }}
             />
           )}
-          {reducedMotion && (
+          {stills && (
             <div className="absolute inset-0 bg-ink/55 md:bg-gradient-to-l md:from-ink/85 md:via-ink/45 md:to-ink/20" />
           )}
-          <div className="relative z-10 flex h-full items-end px-6 py-20 text-right md:items-center md:px-16 lg:px-24">
+          <div className="relative z-10 flex h-full items-end px-5 pt-20 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:items-center md:px-16 md:pb-20 lg:px-24">
             <div className="max-w-xl">
               <SectionLabel className="mb-6">مزون</SectionLabel>
-              <h2 className="font-serif text-4xl leading-[1.05] font-light text-ivory sm:text-6xl">
+              <h2 className="font-serif text-[2.1rem] leading-[1.12] font-light text-ivory sm:text-5xl lg:text-6xl">
                 <RevealWords
                   text="جایی که زیبایی به یک تجربه تبدیل می‌شود"
                   active={brandOp > 0.4}
@@ -278,11 +296,11 @@ export default function CinematicExperience() {
             opacity: servicesOp,
             visibility: servicesOp < 0.02 ? "hidden" : "visible",
             pointerEvents: servicesOp > 0.35 ? "auto" : "none",
-            filter: reducedMotion ? `blur(${blurAmt(servicesOp)}px)` : undefined,
+            filter: blurFilter(servicesOp),
           }}
           aria-hidden={servicesOp < 0.2}
         >
-          {reducedMotion
+          {stills
             ? CINEMATIC_SERVICES.map((item, i) => {
                 const dist = Math.abs(svcFloat - i);
                 const op = clamp(1 - dist * 0.95);
@@ -312,21 +330,21 @@ export default function CinematicExperience() {
                 }}
               />
             )}
-          {reducedMotion && (
+          {stills && (
             <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/35 to-ink/25" />
           )}
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-6 pb-16 text-right md:px-16 md:pb-20 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-20 lg:px-24">
             <SectionLabel className="mb-4">آتلیه</SectionLabel>
             <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
               {svc.index} / {toFaDigits(svcCount).padStart(2, "۰")}
             </p>
-            <h2 className="font-serif text-5xl font-light text-ivory sm:text-7xl lg:text-8xl">
+            <h2 className="font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-8xl">
               {svc.name}
             </h2>
             <p className="mt-2 text-[15px] tracking-[0.32em] text-champagne uppercase">
               {svc.eyebrow}
             </p>
-            <p className="mt-5 max-w-lg text-sm leading-relaxed text-ivory-2">
+            <p className="mt-4 line-clamp-4 max-w-lg text-[13px] leading-relaxed text-ivory-2 sm:text-sm md:line-clamp-none">
               {svc.description}
             </p>
             <div className="mt-8 h-px w-full max-w-xs bg-white/10">
@@ -345,7 +363,7 @@ export default function CinematicExperience() {
             opacity: journeyOp,
             visibility: journeyOp < 0.02 ? "hidden" : "visible",
             pointerEvents: journeyOp > 0.35 ? "auto" : "none",
-            filter: `blur(${blurAmt(journeyOp)}px)`,
+            filter: blurFilter(journeyOp),
           }}
           aria-hidden={journeyOp < 0.2}
         >
@@ -396,30 +414,30 @@ export default function CinematicExperience() {
               className="absolute top-0 bottom-0 w-px bg-champagne"
               style={{ left: `${finalLookP * 100}%` }}
             />
-            <span className="absolute bottom-28 left-6 text-[16px] tracking-[0.3em] text-ivory/90 uppercase md:left-16">
+            <span className="absolute bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] left-5 text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:bottom-28 md:left-16">
               پیش از سیتینگ
             </span>
-            <span className="absolute right-6 bottom-28 text-[16px] tracking-[0.3em] text-ivory/90 uppercase md:right-16">
+            <span className="absolute right-5 bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:right-16 md:bottom-28">
               پس از سیتینگ
             </span>
           </div>
 
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-6 pb-16 text-right md:px-16 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-16 lg:px-24">
             <SectionLabel className="mb-4">از رزرو تا زیبایی</SectionLabel>
             <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
               {jour.index} / ۰۵
             </p>
-            <h2 className="font-serif text-5xl font-light text-ivory sm:text-7xl">
+            <h2 className="font-serif text-[2.5rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
               {jour.title}
             </h2>
-            <p className="mt-4 max-w-md font-serif text-xl text-champagne sm:text-2xl">
+            <p className="mt-3 max-w-md font-serif text-lg text-champagne sm:text-2xl">
               {jour.line}
             </p>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-ivory-2/95">
+            <p className="mt-3 line-clamp-3 max-w-md text-[13px] leading-relaxed text-ivory-2/95 sm:text-sm md:line-clamp-none">
               {jour.body}
             </p>
-            <div className="mt-8 flex gap-2">
+            <div className="mt-6 flex gap-2 md:mt-8">
               {JOURNEY.map((s, i) => (
                 <span
                   key={s.id}
@@ -440,7 +458,7 @@ export default function CinematicExperience() {
             opacity: finaleOp,
             visibility: finaleOp < 0.02 ? "hidden" : "visible",
             pointerEvents: finaleOp > 0.35 ? "auto" : "none",
-            filter: `blur(${blurAmt(finaleOp)}px)`,
+            filter: blurFilter(finaleOp),
           }}
           aria-hidden={finaleOp < 0.2}
         >
@@ -454,9 +472,9 @@ export default function CinematicExperience() {
             }}
           />
           <div className="absolute inset-0 bg-ink/60" />
-          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
+          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 text-center md:pb-0">
             <SectionLabel className="mb-6">دعوت</SectionLabel>
-            <h2 className="max-w-[14ch] font-serif text-5xl font-light text-ivory sm:text-7xl">
+            <h2 className="max-w-[14ch] font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
               <RevealWords text="صندلی شما منتظر است." active={finaleOp > 0.4} />
             </h2>
             <p className="mt-6 max-w-md text-sm leading-relaxed text-ivory-2/95">
@@ -477,6 +495,31 @@ export default function CinematicExperience() {
             </div>
           </div>
         </div>
+
+        {/* Scene rail — compact, thumb-reachable version for phones/tablets */}
+        <ol className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 lg:hidden">
+          {CINEMATIC_SCENES.map((s) => {
+            const on = activeScene.id === s.id;
+            return (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => goScene(s.start)}
+                  aria-current={on}
+                  aria-label={`صحنه ${s.index} ${s.label}`}
+                  className="flex h-8 w-7 items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      "block h-1.5 rounded-full transition-all duration-500",
+                      on ? "w-6 bg-champagne" : "w-1.5 bg-white/30",
+                    )}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
 
         {/* Scene rail */}
         <ol className="absolute top-1/2 left-5 z-20 hidden -translate-y-1/2 flex-col gap-4 lg:flex">
