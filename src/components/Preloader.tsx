@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { CRITICAL_IMAGES, BRAND } from "@/data/salon";
 import { Mark } from "@/components/primitives";
 import { useSalon } from "@/context/SalonContext";
-
-const MAX_WAIT = 4000;
+import { prefersLightData, useIsTouch } from "@/hooks/useMedia";
 
 export default function Preloader() {
   const { setLoaded, reducedMotion } = useSalon();
+  const touch = useIsTouch();
   const [progress, setProgress] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
@@ -15,39 +15,43 @@ export default function Preloader() {
     let mounted = true;
     const started = performance.now();
 
+    /**
+     * Warming the cache is nice on wifi and rude on a phone hotspot, and it
+     * must never hold the visitor hostage: the curtain lifts after `cap` at the
+     * latest, no matter how many images are still in flight.
+     */
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const cap = reducedMotion ? 250 : touch ? 2400 : 4200;
+
     const load = async () => {
       let done = 0;
-      const mark = () => {
-        done += 1;
-        if (mounted) setProgress(done / CRITICAL_IMAGES.length);
-      };
-
-      const images = CRITICAL_IMAGES.map(
-        (src) =>
-          new Promise<void>((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-              mark();
-              resolve();
-            };
-            img.onerror = () => {
-              mark();
-              resolve();
-            };
-            img.src = src;
-          }),
-      );
+      const warm =
+        prefersLightData() || CRITICAL_IMAGES.length === 0
+          ? Promise.resolve()
+          : Promise.all(
+              CRITICAL_IMAGES.map(
+                (src) =>
+                  new Promise<void>((resolve) => {
+                    const img = new Image();
+                    const settle = () => {
+                      done += 1;
+                      if (mounted) setProgress(done / CRITICAL_IMAGES.length);
+                      resolve();
+                    };
+                    img.onload = settle;
+                    img.onerror = settle;
+                    img.src = src;
+                  }),
+              ),
+            ).then(() => undefined);
 
       // Never let a slow network hold the page hostage.
-      const timeout = new Promise<void>((resolve) =>
-        window.setTimeout(resolve, MAX_WAIT),
-      );
+      await Promise.race([warm, wait(cap)]);
+      if (!mounted) return;
+      setProgress(1);
 
-      await Promise.race([Promise.all(images), timeout]);
-
-      const min = reducedMotion ? 200 : 900;
-      const wait = Math.max(0, min - (performance.now() - started));
-      await new Promise((r) => setTimeout(r, wait));
+      const min = reducedMotion ? 200 : 1600;
+      await wait(Math.max(0, min - (performance.now() - started)));
       if (!mounted) return;
       setProgress(1);
       setLeaving(true);

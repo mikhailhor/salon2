@@ -1,15 +1,25 @@
-import { CINEMATIC_SERVICES, IMAGES, JOURNEY, STYLISTS } from "@/data/salon";
+import { useEffect, useRef, useState } from "react";
+import {
+  CINEMATIC_SERVICES,
+  CINEMATIC_VIDEO,
+  IMAGES,
+  JOURNEY,
+  STYLISTS,
+} from "@/data/salon";
 import { useSalon } from "@/context/SalonContext";
+import { useVideoAllowed } from "@/hooks/useMedia";
+import { useCinematicVideo } from "@/hooks/useCinematicVideo";
 import { GoldButton, GhostButton, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
 export function StorySections() {
-  const { openBooking, navigateTo } = useSalon();
+  const { openBooking, navigateTo, reducedMotion } = useSalon();
 
   return (
     <>
-      <section id="home" className="relative flex min-h-screen items-end overflow-hidden bg-ink md:items-center">
+      <section id="home" className="relative flex min-h-[100svh] items-end overflow-hidden bg-ink md:min-h-screen md:items-center">
         <img src={IMAGES.hero} alt="پرتره ادیتوریال از مهمان لیندا" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 18%" }} fetchPriority="high" />
+        <HeroVideo reducedMotion={reducedMotion} />
         <div className="absolute inset-0 bg-gradient-to-l from-ink/82 via-ink/40 to-transparent" />
         <div className="vignette absolute inset-0" />
         <div className="relative z-10 max-w-[1440px] px-6 py-28 text-right md:mr-auto md:px-16 lg:px-24">
@@ -41,10 +51,63 @@ export function StorySections() {
   );
 }
 
+/**
+ * Muted, looping background clip for the standard hero (small screens and
+ * anyone who turned cinematic mode off).
+ *
+ * Native playback only — no seeking, no scroll coupling — so it stays smooth
+ * on a phone. It is skipped on data saver, 2g/3g and reduced motion, and the
+ * poster frame is the hero image itself, so the layout never waits for it.
+ */
+function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
+  const { loaded } = useSalon();
+  const ref = useRef<HTMLVideoElement | null>(null);
+  const [ready, setReady] = useState(false);
+  const [armed, setArmed] = useState(false);
+
+  // Wait for the curtain (and the hero image behind it) before spending
+  // bandwidth on the clip — with a hard deadline in case anything stalls.
+  useEffect(() => {
+    const t = window.setTimeout(() => setArmed(true), 3200);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const allowed = useVideoAllowed(reducedMotion) && (loaded || armed);
+
+  useCinematicVideo(ref, {
+    mode: "play",
+    active: allowed,
+    enabled: allowed,
+  });
+
+  if (!allowed) return null;
+
+  return (
+    <video
+      ref={ref}
+      src={CINEMATIC_VIDEO}
+      poster={IMAGES.hero}
+      muted
+      loop
+      playsInline
+      autoPlay
+      preload="auto"
+      disablePictureInPicture
+      aria-hidden="true"
+      onLoadedData={() => setReady(true)}
+      className={cn(
+        "absolute inset-0 h-full w-full transform-gpu object-cover transition-opacity duration-1000",
+        ready ? "opacity-100" : "opacity-0",
+      )}
+      style={{ objectPosition: "center 18%" }}
+    />
+  );
+}
+
 export function ServicesBlock() {
   const { openBooking } = useSalon();
   return (
-    <section id="services" className="scroll-mt-24 bg-ink-2 py-24 md:py-32">
+    <section id="services" className="scroll-mt-28 lg:scroll-mt-40 bg-ink-2 py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <div className="mb-16 flex flex-col items-start justify-between gap-6 text-right md:flex-row md:items-end">
           <div><SectionLabel className="mb-5">آتلیه</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-6xl">خدمات</h2></div>
@@ -67,7 +130,7 @@ export function ServicesBlock() {
 
 export function JourneyBlock() {
   return (
-    <section id="ritual" className="scroll-mt-24 bg-ink py-24 md:py-32">
+    <section id="ritual" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <SectionLabel className="mb-5">مسیر</SectionLabel>
         <h2 className="mb-16 max-w-[16ch] font-serif text-4xl font-light text-ivory sm:text-6xl">از رزرو تا زیبایی</h2>
@@ -108,7 +171,7 @@ export function AppointmentCta() {
 export function AboutSection() {
   const { openBooking } = useSalon();
   return (
-    <section id="about" className="scroll-mt-24 bg-ink py-24 md:py-32">
+    <section id="about" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto grid max-w-[1440px] items-center gap-14 px-5 md:grid-cols-2 md:px-8 lg:px-12">
         <div className="relative aspect-[4/5] overflow-hidden"><img src={IMAGES.interior} alt="فضای داخلی لیندا در شب" className="h-full w-full object-cover" loading="lazy" /></div>
         <div className="max-w-lg text-right"><SectionLabel className="mb-6">درباره ما</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-5xl">درباره لیندا</h2><p className="mt-8 text-sm leading-relaxed text-ivory-2/95">یک مزون، نه یک بازار شلوغ. روز را خلوت نگه می‌داریم تا کار بزرگ‌تر باشد؛ چند سیتینگ، چند هنرمند و یک آدرس در قلب صادقیه.</p><p className="mt-5 text-sm leading-relaxed text-ivory-2/90">مو مثل یک ترکیب‌بندی کوتاه می‌شود، رنگ مثل نور نقاشی می‌شود و میکاپ معماری چهره است. عروس، تئاتری خصوصی است؛ شما همان خودتان می‌روید، فقط شفاف‌تر.</p><GoldButton type="button" onClick={() => openBooking()} className="mt-10">اطلاعات بیشتر</GoldButton></div>
@@ -123,7 +186,7 @@ export function MobileBookBar() {
   return (
     <div
       className={cn(
-        "fixed right-0 bottom-0 left-0 z-40 border-t border-white/10 bg-ink/95 p-3 lg:hidden",
+        "fixed right-0 bottom-0 left-0 z-40 border-t border-white/10 bg-ink/90 px-3 pt-3 backdrop-blur-md lg:hidden",
         "pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]",
         bookingOpen && "hidden",
       )}

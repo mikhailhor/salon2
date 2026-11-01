@@ -7,7 +7,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePrefersReducedMotion } from "@/hooks/useMedia";
+import { useCinematicCapable, usePrefersReducedMotion } from "@/hooks/useMedia";
+
+/**
+ * Minimum viewport height for the pinned cinematic track. Phones and tablets
+ * are supported; only viewports too short for a full-screen scene (landscape
+ * phones, split-screen windows) fall back to the standard page.
+ */
+export const CINEMATIC_MIN_HEIGHT = 480;
 
 export interface BookingDraft {
   serviceId: string | null;
@@ -32,7 +39,10 @@ const EMPTY_BOOKING: BookingDraft = {
 };
 
 interface SalonContextValue {
+  /** Effective value: never true on a small screen. */
   cinematic: boolean;
+  /** Whether this device/viewport can use cinematic mode at all. */
+  cinematicSupported: boolean;
   setCinematic: (value: boolean) => void;
   bookingOpen: boolean;
   openBooking: (serviceId?: string) => void;
@@ -50,23 +60,33 @@ const SalonContext = createContext<SalonContextValue | null>(null);
 
 export function SalonProvider({ children }: { children: ReactNode }) {
   const reducedMotion = usePrefersReducedMotion();
-  const [cinematic, setCinematicState] = useState(true);
+  const capable = useCinematicCapable();
+  const [cinematicPref, setCinematicPref] = useState(true);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [booking, setBookingState] = useState<BookingDraft>(EMPTY_BOOKING);
   const [loaded, setLoaded] = useState(false);
 
+  /**
+   * Cinematic mode runs on every device class — phone, tablet and desktop —
+   * in a form tuned for the input it gets (scroll-scrubbed video on desktop,
+   * native playback on touch). Only viewports too short to show a scene drop
+   * back to the natively scrolling page.
+   */
+  const cinematicSupported = capable;
+  const cinematic = cinematicPref && cinematicSupported;
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem("solene-cinematic");
-      if (stored === "off") setCinematicState(false);
-      if (stored === "on") setCinematicState(true);
+      if (stored === "off") setCinematicPref(false);
+      if (stored === "on") setCinematicPref(true);
     } catch {
       /* ignore */
     }
   }, []);
 
   const setCinematic = useCallback((value: boolean) => {
-    setCinematicState(value);
+    setCinematicPref(value);
     try {
       localStorage.setItem("solene-cinematic", value ? "on" : "off");
     } catch {
@@ -130,6 +150,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       cinematic,
+      cinematicSupported,
       setCinematic,
       bookingOpen,
       openBooking,
@@ -144,6 +165,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     }),
     [
       cinematic,
+      cinematicSupported,
       setCinematic,
       bookingOpen,
       openBooking,

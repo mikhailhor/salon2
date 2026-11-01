@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 export default function CinematicIntro() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,8 +44,12 @@ export default function CinematicIntro() {
       const target = measureTarget();
       const dx = (target.x - w / 2) * pe;
       const dy = (target.y - h / 2) * pe;
-      // Intro mark is 256px (or 320px from md up); the header mark is 44/64px.
-      const endScale = w >= 768 ? 64 / 320 : 44 / 256;
+      // End scale is derived from the rendered sizes rather than hard-coded,
+      // so the mark always lands exactly on the header logo — even when the
+      // intro logo is capped by a narrow viewport.
+      const headerMark = w >= 1024 ? 88 : w >= 768 ? 80 : 68;
+      const introMark = imgRef.current?.offsetHeight || (w >= 768 ? 384 : 288);
+      const endScale = headerMark / introMark;
       const s = 1 - pe * (1 - endScale);
 
       if (logoRef.current) {
@@ -90,21 +95,22 @@ export default function CinematicIntro() {
         <div ref={logoRef} className="will-change-transform">
           <div className="relative flex items-center justify-center">
             <span
-              className="logo-neon absolute -inset-10 rounded-full"
+              className="logo-neon absolute -inset-5 rounded-full md:-inset-6"
               aria-hidden="true"
             />
             <span
-              className="logo-neon-core absolute -inset-4 rounded-full"
+              className="logo-neon-core absolute -inset-3 rounded-full md:-inset-4"
               aria-hidden="true"
             />
             <picture>
               <source srcSet="/logo.webp" type="image/webp" />
               <img
+                ref={imgRef}
                 src="/logo.png"
                 alt=""
                 width={512}
                 height={512}
-                className="logo-neon-img relative h-64 w-auto object-contain md:h-80"
+                className="logo-neon-img relative h-[min(18rem,74vw)] w-auto object-contain md:h-96"
               />
             </picture>
           </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import {
   CINEMATIC_SCENES,
   CINEMATIC_SERVICES,
+  CINEMATIC_VIDEO,
   IMAGES,
   JOURNEY,
   toFaDigits,
@@ -13,16 +14,19 @@ import {
   rangeProgress,
   useCinematicProgress,
   useIsMobile,
+  useIsTouch,
+  useVideoAllowed,
 } from "@/hooks/useMedia";
+import { useCinematicVideo } from "@/hooks/useCinematicVideo";
 import { GoldButton, RevealWords, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
-const VIDEO_SRC = "/cinematic2.mp4";
+const VIDEO_SRC = CINEMATIC_VIDEO;
 const VIDEO_FALLBACK_IMG = "/images/services/makeup.jpg";
 const NAILS_INDEX = 6;
 const VIDEO_DURATION = 15;
 const VIDEO_END_PROGRESS = 0.62;
-const VIDEO_SEEK_INTERVAL = 110;
+/** Scenes whose opacity is below this are unmounted instead of just hidden. */
 const VISIBLE_EPS = 0.004;
 
 function progressToVideoTime(progress: number): number {
@@ -30,16 +34,18 @@ function progressToVideoTime(progress: number): number {
 }
 
 export default function CinematicExperience() {
-  const { reducedMotion, openBooking, navigateTo } = useSalon();
+  const { reducedMotion, openBooking, navigateTo, loaded } = useSalon();
   const mobile = useIsMobile();
+  const touch = useIsTouch();
+  /**
+   * Data saver, 2g/3g and reduced motion get the still-image cut of the same
+   * film: identical scenes and copy, no video bytes and no decoding cost.
+   */
+  const videoAllowed = useVideoAllowed(reducedMotion);
+  const stills = reducedMotion || !videoAllowed;
   const trackRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const progress = useCinematicProgress(trackRef, true, reducedMotion, mobile);
-
-  // Mobile (and reduced motion) skips the scroll-scrubbed video entirely:
-  // seeking a full-size mp4 on every frame is the main source of jank on
-  // phones and low-power tablets.
-  const staticBg = reducedMotion || mobile;
+  const progress = useCinematicProgress(trackRef, true, reducedMotion, touch);
 
   const heroOp = fadeWindow(progress, -0.04, 0.125, 0.04);
   const brandOp = fadeWindow(progress, 0.115, 0.245, 0.04);
@@ -97,33 +103,34 @@ export default function CinematicExperience() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeScene.id, reducedMotion]);
 
-  // Video scrubbing is throttled: a seek flushes the decoder, so writing
-  // currentTime on every React frame makes the page drop to a few FPS.
-  const videoTargetRef = useRef(0);
-  videoTargetRef.current =
-    progress < VIDEO_END_PROGRESS + 0.05
-      ? progressToVideoTime(progress)
-      : -1;
+  const videoOp = stills ? 0 : 1 - clamp((progress - 0.61) / 0.04);
+  const videoTarget = progressToVideoTime(progress);
 
-  useEffect(() => {
-    if (staticBg) return;
-    const id = window.setInterval(() => {
-      const video = videoRef.current;
-      const target = videoTargetRef.current;
-      if (!video || target < 0) return;
-      if (Math.abs(video.currentTime - target) < 0.04) return;
-      video.currentTime = target;
-    }, VIDEO_SEEK_INTERVAL);
-    return () => window.clearInterval(id);
-  }, [staticBg]);
-
-  const videoOp = reducedMotion || mobile ? 0 : 1 - clamp((progress - 0.61) / 0.04);
+  /**
+   * Desktop scrubs the clip with the scroll. On touch devices seeking per
+   * frame is what breaks the scroll, so the clip simply plays — muted, looping
+   * and native — which is the smoothest possible "video showcase" there.
+   */
+  useCinematicVideo(videoRef, {
+    mode: touch ? "play" : "scrub",
+    targetTime: videoTarget,
+    // On touch the clip waits for the curtain so it never competes with the
+    // hero imagery for the first megabytes of a mobile connection.
+    active: !stills && videoOp > 0.02 && (!touch || loaded),
+    enabled: !stills,
+    duration: VIDEO_DURATION,
+  });
 
   const blurAmt = (op: number) =>
-    mobile || reducedMotion ? 0 : (1 - op) * 10;
-  const blurStyle = (op: number) => {
-    const amount = blurAmt(op);
-    return amount > 0.15 ? `blur(${amount.toFixed(2)}px)` : undefined;
+    mobile || touch || reducedMotion ? 0 : (1 - op) * 10;
+  /**
+   * `undefined` rather than `blur(0px)`: an explicit filter still promotes the
+   * whole scene to its own filtered layer, which is exactly the per-frame cost
+   * phones and tablets cannot spare.
+   */
+  const blurFilter = (op: number) => {
+    const b = blurAmt(op);
+    return b > 0.05 ? `blur(${b}px)` : undefined;
   };
   const ken = (local: number) => (reducedMotion ? 1 : 1.04 + local * (mobile ? 0.03 : 0.06));
 
@@ -141,33 +148,38 @@ export default function CinematicExperience() {
     <section
       id="cinematic-track"
       ref={trackRef}
-      className="relative h-[640vh] bg-ink lg:h-[960vh]"
+      className="relative h-[620vh] bg-ink sm:h-[760vh] lg:h-[960vh]"
       aria-label="معرفی سینمایی لیندا"
     >
-      <div id="home" className="sticky top-0 h-screen overflow-hidden bg-ink">
+      <div
+        id="home"
+        className="cinematic-stage sticky top-0 h-[100svh] overflow-hidden bg-ink lg:h-screen"
+      >
         <div className="pointer-events-none absolute top-0 left-0 z-30 h-[2px] w-full bg-white/5">
           <div
-            className="h-full w-full origin-right bg-champagne will-change-transform"
-            style={{ transform: `scaleX(${progress.toFixed(4)})` }}
+            className="h-full bg-champagne"
+            style={{ width: `${progress * 100}%` }}
           />
         </div>
 
-        {!staticBg && (
+        {!stills && (
           <video
             ref={videoRef}
             src={VIDEO_SRC}
             poster={VIDEO_FALLBACK_IMG}
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            className="pointer-events-none absolute inset-0 h-full w-full transform-gpu object-cover"
             style={{
               opacity: videoOp,
               visibility: videoOp < 0.02 ? "hidden" : "visible",
             }}
             muted
             playsInline
-            preload="auto"
+            disablePictureInPicture
+            preload={touch ? "metadata" : "auto"}
+            aria-hidden="true"
           />
         )}
-        {!staticBg && (
+        {!stills && (
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-ink/25" />
             <div className="absolute inset-0 bg-gradient-to-l from-ink/70 via-ink/15 to-ink/45" />
@@ -182,11 +194,11 @@ export default function CinematicExperience() {
           style={{
             opacity: heroOp,
             pointerEvents: heroOp > 0.35 ? "auto" : "none",
-            filter: blurStyle(heroOp),
+            filter: blurFilter(heroOp),
           }}
           aria-hidden={heroOp < 0.2}
         >
-          {staticBg && (
+          {stills && (
             <img
               src={IMAGES.hero}
               alt="پرتره ادیتوریال از مهمان لیندا"
@@ -199,15 +211,15 @@ export default function CinematicExperience() {
               decoding="async"
             />
           )}
-          {staticBg && (
+          {stills && (
             <>
               <div className="absolute inset-0 bg-gradient-to-l from-ink/80 via-ink/35 to-transparent" />
               <div className="vignette absolute inset-0" />
             </>
           )}
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-6 pb-36 text-right md:justify-center md:px-16 md:pb-0 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:justify-center md:px-16 md:pb-24 lg:px-24 lg:pb-0">
             <SectionLabel className="mb-6">آرامش زیبایی تهران</SectionLabel>
-            <h1 className="max-w-[12ch] font-serif text-[2.4rem] leading-[1.15] font-light text-ivory sm:text-7xl lg:text-8xl">
+            <h1 className="max-w-[12ch] font-serif text-[2.6rem] leading-[1.12] font-light text-ivory sm:text-6xl md:text-7xl lg:text-8xl">
               <RevealWords text="زیبایی، از نو تعریف می‌شود." active={heroOp > 0.45} />
             </h1>
             <p
@@ -222,7 +234,7 @@ export default function CinematicExperience() {
               ادیتوریال، کاملاً برای شما طراحی می‌شود.
             </p>
           </div>
-          <div className="absolute bottom-28 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3 md:bottom-8">
+          <div className="absolute bottom-[calc(7.5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3 md:bottom-24 lg:bottom-8">
             <span className="text-[15px] tracking-[0.4em] text-ivory/80 uppercase">
               اسکرول کنید
             </span>
@@ -238,11 +250,11 @@ export default function CinematicExperience() {
           style={{
             opacity: brandOp,
             pointerEvents: brandOp > 0.35 ? "auto" : "none",
-            filter: blurStyle(brandOp),
+            filter: blurFilter(brandOp),
           }}
           aria-hidden={brandOp < 0.2}
         >
-          {staticBg && (
+          {stills && (
             <img
               src={IMAGES.brandModel}
               alt="مدل لیندا در نور آتلیه"
@@ -254,13 +266,13 @@ export default function CinematicExperience() {
               decoding="async"
             />
           )}
-          {staticBg && (
+          {stills && (
             <div className="absolute inset-0 bg-ink/55 md:bg-gradient-to-l md:from-ink/85 md:via-ink/45 md:to-ink/20" />
           )}
-          <div className="relative z-10 flex h-full items-end px-6 py-20 text-right md:items-center md:px-16 lg:px-24">
+          <div className="relative z-10 flex h-full items-end px-5 pt-20 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:items-center md:px-16 md:pb-20 lg:px-24">
             <div className="max-w-xl">
               <SectionLabel className="mb-6">مزون</SectionLabel>
-              <h2 className="font-serif text-[1.9rem] leading-[1.15] font-light text-ivory sm:text-6xl">
+              <h2 className="font-serif text-[2.1rem] leading-[1.12] font-light text-ivory sm:text-5xl lg:text-6xl">
                 <RevealWords
                   text="جایی که زیبایی به یک تجربه تبدیل می‌شود"
                   active={brandOp > 0.4}
@@ -290,15 +302,13 @@ export default function CinematicExperience() {
           style={{
             opacity: servicesOp,
             pointerEvents: servicesOp > 0.35 ? "auto" : "none",
-            filter: blurStyle(servicesOp),
+            filter: blurFilter(servicesOp),
           }}
           aria-hidden={servicesOp < 0.2}
         >
-          {staticBg
+          {stills
             ? CINEMATIC_SERVICES.map((item, i) => {
                 const dist = Math.abs(svcFloat - i);
-                // Only keep the active card and its immediate neighbours in the
-                // DOM — ten stacked full-screen layers is what melts mobile GPUs.
                 if (dist > 1.5) return null;
                 const op = clamp(1 - dist * 0.95);
                 return (
@@ -321,6 +331,8 @@ export default function CinematicExperience() {
               <img
                 src={IMAGES.nails}
                 alt="آرت ناخن در نور آتلیه"
+                loading="lazy"
+                decoding="async"
                 className="absolute inset-0 h-full w-full object-cover"
                 style={{
                   opacity: clamp(1 - Math.abs(svcFloat - NAILS_INDEX) * 0.95),
@@ -329,29 +341,27 @@ export default function CinematicExperience() {
                 }}
               />
             )}
-          {staticBg && (
+          {stills && (
             <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/35 to-ink/25" />
           )}
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-6 pb-24 text-right md:px-16 md:pb-20 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-20 lg:px-24">
             <SectionLabel className="mb-4">آتلیه</SectionLabel>
-            <p className="mb-2 font-sans text-[15px] tracking-[0.4em] text-ivory/80 sm:text-[16px]">
+            <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
               {svc.index} / {toFaDigits(svcCount).padStart(2, "۰")}
             </p>
-            <h2 className="max-w-[16ch] font-serif text-[2.25rem] leading-[1.1] font-light text-ivory sm:text-7xl lg:text-8xl">
+            <h2 className="font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-8xl">
               {svc.name}
             </h2>
-            <p className="mt-2 text-[13px] tracking-[0.24em] text-champagne uppercase sm:text-[15px] sm:tracking-[0.32em]">
+            <p className="mt-2 text-[15px] tracking-[0.32em] text-champagne uppercase">
               {svc.eyebrow}
             </p>
-            <p className="mt-5 max-w-lg text-[13px] leading-relaxed text-ivory-2 sm:text-sm">
+            <p className="mt-4 line-clamp-4 max-w-lg text-[13px] leading-relaxed text-ivory-2 sm:text-sm md:line-clamp-none">
               {svc.description}
             </p>
             <div className="mt-8 h-px w-full max-w-xs bg-white/10">
               <div
-                className="h-px w-full origin-right bg-champagne will-change-transform"
-                style={{
-                  transform: `scaleX(${(svcFloat % 1).toFixed(3)})`,
-                }}
+                className="h-px bg-champagne"
+                style={{ width: `${((svcFloat % 1) * 100).toFixed(1)}%` }}
               />
             </div>
           </div>
@@ -365,15 +375,15 @@ export default function CinematicExperience() {
           style={{
             opacity: journeyOp,
             pointerEvents: journeyOp > 0.35 ? "auto" : "none",
-            filter: blurStyle(journeyOp),
+            filter: blurFilter(journeyOp),
           }}
           aria-hidden={journeyOp < 0.2}
         >
           {JOURNEY.map((step, i) => {
             const dist = Math.abs(jourFloat - i);
+            if (dist > 1.5) return null;
             const op = clamp(1 - dist * 0.9);
             if (step.id === "final") return null;
-            if (dist > 1.5) return null;
             return (
               <img
                 key={step.id}
@@ -419,36 +429,36 @@ export default function CinematicExperience() {
               className="absolute top-0 bottom-0 w-px bg-champagne"
               style={{ left: `${finalLookP * 100}%` }}
             />
-            <span className="absolute bottom-28 left-6 text-[13px] tracking-[0.24em] text-ivory/90 uppercase md:left-16 md:text-[16px] md:tracking-[0.3em]">
+            <span className="absolute bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] left-5 text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:bottom-28 md:left-16">
               پیش از سیتینگ
             </span>
-            <span className="absolute right-6 bottom-28 text-[13px] tracking-[0.24em] text-ivory/90 uppercase md:right-16 md:text-[16px] md:tracking-[0.3em]">
+            <span className="absolute right-5 bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:right-16 md:bottom-28">
               پس از سیتینگ
             </span>
           </div>
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-6 pb-24 text-right md:px-16 md:pb-20 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-16 lg:px-24">
             <SectionLabel className="mb-4">از رزرو تا زیبایی</SectionLabel>
-            <p className="mb-2 font-sans text-[15px] tracking-[0.4em] text-ivory/80 sm:text-[16px]">
+            <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
               {jour.index} / ۰۵
             </p>
-            <h2 className="max-w-[14ch] font-serif text-[2.25rem] leading-[1.1] font-light text-ivory sm:text-7xl">
+            <h2 className="font-serif text-[2.5rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
               {jour.title}
             </h2>
-            <p className="mt-4 max-w-md font-serif text-lg text-champagne sm:text-2xl">
+            <p className="mt-3 max-w-md font-serif text-lg text-champagne sm:text-2xl">
               {jour.line}
             </p>
-            <p className="mt-4 max-w-md text-[13px] leading-relaxed text-ivory-2/95 sm:text-sm">
+            <p className="mt-3 line-clamp-3 max-w-md text-[13px] leading-relaxed text-ivory-2/95 sm:text-sm md:line-clamp-none">
               {jour.body}
             </p>
-            <div className="mt-8 flex gap-2">
+            <div className="mt-6 flex gap-2 md:mt-8">
               {JOURNEY.map((s, i) => (
                 <span
                   key={s.id}
                   className={cn(
-                    "h-px w-6 transition-colors duration-500 sm:w-8",
+                    "h-px w-8 transition-colors duration-500",
                     i <= jourIndex ? "bg-champagne" : "bg-white/15",
                   )}
                 />
@@ -465,7 +475,7 @@ export default function CinematicExperience() {
           style={{
             opacity: finaleOp,
             pointerEvents: finaleOp > 0.35 ? "auto" : "none",
-            filter: blurStyle(finaleOp),
+            filter: blurFilter(finaleOp),
           }}
           aria-hidden={finaleOp < 0.2}
         >
@@ -473,19 +483,19 @@ export default function CinematicExperience() {
             src={IMAGES.chair}
             alt="صندلی خالی آرایش در انتظار شما در آتلیه"
             className="absolute inset-0 h-full w-full object-cover"
-            decoding="async"
             style={{
               objectPosition: "center center",
               transform: `scale(${ken(rangeProgress(progress, 0.88, 1))})`,
             }}
+            decoding="async"
           />
           <div className="absolute inset-0 bg-ink/60" />
-          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
+          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 text-center md:pb-0">
             <SectionLabel className="mb-6">دعوت</SectionLabel>
-            <h2 className="max-w-[14ch] font-serif text-[2.25rem] leading-[1.15] font-light text-ivory sm:text-7xl">
+            <h2 className="max-w-[14ch] font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
               <RevealWords text="صندلی شما منتظر است." active={finaleOp > 0.4} />
             </h2>
-            <p className="mt-6 max-w-md text-[13px] leading-relaxed text-ivory-2/95 sm:text-sm">
+            <p className="mt-6 max-w-md text-sm leading-relaxed text-ivory-2/95">
               هر روز فقط چند سیتینگ محدود؛ یک ساعت خصوصی در مزون برای خودتان رزرو کنید.
             </p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
@@ -496,7 +506,7 @@ export default function CinematicExperience() {
                 type="button"
                 data-cursor="کاوش"
                 onClick={() => navigateTo("portfolio")}
-                className="text-[14px] tracking-[0.24em] text-ivory/90 uppercase transition-colors hover:text-champagne sm:text-[16px] sm:tracking-[0.32em]"
+                className="text-[16px] tracking-[0.32em] text-ivory/90 uppercase transition-colors hover:text-champagne"
               >
                 ادامه به گالری
               </button>
@@ -504,6 +514,31 @@ export default function CinematicExperience() {
           </div>
         </div>
         )}
+
+        {/* Scene rail — compact, thumb-reachable version for phones/tablets */}
+        <ol className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 lg:hidden">
+          {CINEMATIC_SCENES.map((s) => {
+            const on = activeScene.id === s.id;
+            return (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => goScene(s.start)}
+                  aria-current={on}
+                  aria-label={`صحنه ${s.index} ${s.label}`}
+                  className="flex h-8 w-7 items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      "block h-1.5 rounded-full transition-all duration-500",
+                      on ? "w-6 bg-champagne" : "w-1.5 bg-white/30",
+                    )}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
 
         {/* Scene rail */}
         <ol className="absolute top-1/2 left-5 z-20 hidden -translate-y-1/2 flex-col gap-4 lg:flex">

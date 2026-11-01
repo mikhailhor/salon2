@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { SalonProvider, useSalon } from "@/context/SalonContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -24,6 +25,17 @@ export default function App() {
 
 function Root() {
   const { cinematic } = useSalon();
+
+  /**
+   * While the pinned cinematic track is on screen the page owns the scroll
+   * gesture: this class keeps pull-to-refresh and rubber-banding from
+   * interrupting a touch drag in the middle of a scene.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("cinematic-active", cinematic);
+    return () => root.classList.remove("cinematic-active");
+  }, [cinematic]);
 
   return (
     <div dir="rtl" className="page-bottom-safe min-h-screen bg-ink text-ivory">

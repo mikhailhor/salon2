@@ -16,7 +16,7 @@ export default function PortfolioSection() {
   const items = useMemo(() => filter === "All" ? PORTFOLIO : PORTFOLIO.filter((p) => p.category === filter), [filter]);
 
   return (
-    <section id="portfolio" className="scroll-mt-24 bg-ink py-24 md:py-32">
+    <section id="portfolio" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <div className="mb-12 flex flex-col gap-8 text-right md:mb-16 md:flex-row md:items-end md:justify-between">
           <div><SectionLabel className="mb-5">لُک‌بوک</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-6xl">نمونه‌کارهای ما</h2></div>

@@ -6,7 +6,14 @@ import { GoldButton, IconClose, Logo } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
 export default function Header() {
-  const { cinematic, setCinematic, openBooking, navigateTo, bookingOpen } = useSalon();
+  const {
+    cinematic,
+    cinematicSupported,
+    setCinematic,
+    openBooking,
+    navigateTo,
+    bookingOpen,
+  } = useSalon();
   const scrolled = useScrolled(18);
   const mobile = useIsMobile(1024);
   const [menu, setMenu] = useState(false);
@@ -44,11 +51,13 @@ export default function Header() {
           bookingOpen && "pointer-events-none opacity-0",
         )}
       >
-        <div className="mx-auto flex h-[84px] max-w-[1440px] items-center justify-between px-5 md:h-[110px] md:px-8 lg:px-12">
+        <div className="mx-auto flex h-[108px] max-w-[1440px] items-center justify-between px-5 md:h-[112px] md:px-8 lg:h-[136px] lg:px-12">
           <Logo
             onClick={() => go("home")}
             withText={false}
-            markClassName="h-11 w-auto md:h-16"
+            /* A clear ring of dark air between the mark and its halo. */
+            ringGap="0.85rem"
+            markClassName="h-[4.25rem] w-auto md:h-20 lg:h-[5.5rem]"
           />
 
           <nav className="hidden items-center gap-9 lg:flex" aria-label="ناوبری اصلی">
@@ -66,11 +75,15 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-3 md:gap-5">
-            <CinematicToggle
-              on={cinematic}
-              onChange={setCinematic}
-              compact={mobile}
-            />
+            {cinematicSupported && (
+              <CinematicToggle
+                on={cinematic}
+                onChange={setCinematic}
+                /* On a phone the header only has room for the switch itself;
+                   the labelled row lives in the mobile menu. */
+                compact
+              />
+            )}
             <GoldButton
               type="button"
               onClick={() => openBooking()}
@@ -121,6 +134,14 @@ export default function Header() {
               {item.label}
             </button>
           ))}
+          {cinematicSupported && (
+            <div className="mt-6 flex items-center justify-between border-b border-white/8 py-4">
+              <span className="text-[13px] font-bold tracking-[0.28em] text-ivory/80 uppercase">
+                تجربه سینمایی
+              </span>
+              <CinematicToggle on={cinematic} onChange={setCinematic} />
+            </div>
+          )}
           <GoldButton
             type="button"
             onClick={() => {
@@ -140,11 +161,11 @@ export default function Header() {
 function CinematicToggle({
   on,
   onChange,
-  compact,
+  compact = false,
 }: {
   on: boolean;
   onChange: (v: boolean) => void;
-  compact: boolean;
+  compact?: boolean;
 }) {
   return (
     <button
@@ -154,18 +175,19 @@ function CinematicToggle({
       aria-label="حالت سینمایی"
       data-cursor="کاوش"
       onClick={() => onChange(!on)}
-      className="flex items-center gap-3"
+      className={cn(
+        "flex items-center gap-3",
+        compact && "-mr-1 p-1",
+      )}
     >
-      {!compact && (
-        <span className="text-[16px] font-bold tracking-[0.28em] text-ivory/90 uppercase">
-          حالت سینمایی
-        </span>
-      )}
-      {compact && (
-        <span className="hidden text-[16px] tracking-[0.22em] text-ivory/90 uppercase sm:inline">
-          سینمایی
-        </span>
-      )}
+      <span
+        className={cn(
+          "text-[16px] font-bold tracking-[0.28em] text-ivory/90 uppercase",
+          compact && "hidden lg:inline",
+        )}
+      >
+        حالت سینمایی
+      </span>
       <span
         className={cn(
           "relative h-5 w-9 rounded-full border transition-colors duration-500",
