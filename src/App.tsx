@@ -26,7 +26,7 @@ function Root() {
   const { cinematic } = useSalon();
 
   return (
-    <div dir="rtl" className="min-h-screen bg-ink pb-16 text-ivory lg:pb-0">
+    <div dir="rtl" className="page-bottom-safe min-h-screen bg-ink text-ivory">
       <Preloader />
       <div className="film-grain" aria-hidden="true" />
       <CustomCursor />

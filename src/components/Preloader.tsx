@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { ALL_IMAGES, BRAND } from "@/data/salon";
+import { CRITICAL_IMAGES, BRAND } from "@/data/salon";
 import { Mark } from "@/components/primitives";
 import { useSalon } from "@/context/SalonContext";
+
+const MAX_WAIT = 4000;
 
 export default function Preloader() {
   const { setLoaded, reducedMotion } = useSalon();
@@ -15,35 +17,44 @@ export default function Preloader() {
 
     const load = async () => {
       let done = 0;
-      await Promise.all(
-        ALL_IMAGES.map(
-          (src) =>
-            new Promise<void>((resolve) => {
-              const img = new Image();
-              img.onload = () => {
-                done += 1;
-                if (mounted) setProgress(done / ALL_IMAGES.length);
-                resolve();
-              };
-              img.onerror = () => {
-                done += 1;
-                if (mounted) setProgress(done / ALL_IMAGES.length);
-                resolve();
-              };
-              img.src = src;
-            }),
-        ),
+      const mark = () => {
+        done += 1;
+        if (mounted) setProgress(done / CRITICAL_IMAGES.length);
+      };
+
+      const images = CRITICAL_IMAGES.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              mark();
+              resolve();
+            };
+            img.onerror = () => {
+              mark();
+              resolve();
+            };
+            img.src = src;
+          }),
       );
 
-      const min = reducedMotion ? 200 : 1600;
+      // Never let a slow network hold the page hostage.
+      const timeout = new Promise<void>((resolve) =>
+        window.setTimeout(resolve, MAX_WAIT),
+      );
+
+      await Promise.race([Promise.all(images), timeout]);
+
+      const min = reducedMotion ? 200 : 900;
       const wait = Math.max(0, min - (performance.now() - started));
       await new Promise((r) => setTimeout(r, wait));
       if (!mounted) return;
+      setProgress(1);
       setLeaving(true);
       setLoaded(true);
       window.setTimeout(() => {
         if (mounted) setGone(true);
-      }, reducedMotion ? 80 : 900);
+      }, reducedMotion ? 80 : 700);
     };
 
     void load();

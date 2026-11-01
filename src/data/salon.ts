@@ -13,6 +13,13 @@ export const IMAGES = {
 
 export const ALL_IMAGES = Object.values(IMAGES);
 
+/** Only the art the first screen actually needs — the rest lazy-loads. */
+export const CRITICAL_IMAGES: readonly string[] = [
+  IMAGES.hero,
+  IMAGES.brandModel,
+  IMAGES.makeup,
+];
+
 export function toFaDigits(value: number | string) {
   return String(value).replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
 }

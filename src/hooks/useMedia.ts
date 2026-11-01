@@ -66,51 +66,68 @@ export function useCinematicProgress(
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (!enabled) return;
+    const el = trackRef.current;
+    if (!enabled || !el) return;
+
     let raf = 0;
     let alive = true;
-    let running = true;
+    let ticking = false;
     let current = 0;
     let target = 0;
 
-    const measure = () => {
-      const el = trackRef.current;
-      if (!el) return;
-      const total = Math.max(1, el.offsetHeight - window.innerHeight);
-      const top = el.getBoundingClientRect().top;
-      const scrolled = clamp(-top / total);
-      target = scrolled;
-    };
-
     const ease = reduced ? 1 : mobile ? 0.14 : 0.078;
+
+    const read = () => {
+      const rect = el.getBoundingClientRect();
+      const top = rect.top + window.scrollY;
+      const total = Math.max(1, el.offsetHeight - window.innerHeight);
+      target = clamp((window.scrollY - top) / total);
+    };
 
     const tick = () => {
       if (!alive) return;
-      measure();
+      raf = 0;
+      read();
       current += (target - current) * ease;
       if (Math.abs(target - current) < 0.0007) current = target;
       setProgress(current);
-      if (running) raf = requestAnimationFrame(tick);
+      if (current !== target) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        ticking = false;
+      }
     };
 
-    const el = trackRef.current;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        running = entry.isIntersecting;
-        if (running) {
-          cancelAnimationFrame(raf);
-          raf = requestAnimationFrame(tick);
-        }
-      },
-      { threshold: 0 },
-    );
-    if (el) io.observe(el);
+    const schedule = () => {
+      if (ticking || !alive) return;
+      ticking = true;
+      raf = requestAnimationFrame(tick);
+    };
 
-    raf = requestAnimationFrame(tick);
+    const onResize = () => {
+      read();
+      schedule();
+    };
+
+    read();
+    current = target;
+    setProgress(current);
+
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+
+    const ro = new ResizeObserver(onResize);
+    ro.observe(el);
+
     return () => {
       alive = false;
+      ticking = false;
       cancelAnimationFrame(raf);
-      io.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      ro.disconnect();
     };
   }, [enabled, reduced, mobile, trackRef]);
 
@@ -121,10 +138,22 @@ export function useScrolled(threshold = 24) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > threshold);
-    onScroll();
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const next = window.scrollY > threshold;
+      setScrolled((prev) => (prev === next ? prev : next));
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(apply);
+    };
+    apply();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [threshold]);
 
   return scrolled;

@@ -32,6 +32,8 @@
     font-weight: 700;
     letter-spacing: 0.01em;
     overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   html[dir="rtl"] body {
@@ -119,6 +121,15 @@ html.is-cursor-hidden select {
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   animation: grain-shift 1.6s steps(2) infinite;
+  will-change: transform;
+}
+
+/* A full-screen blended layer that repaints 60×/s is one of the biggest
+   scroll-cost items. Keep it only where the GPU budget allows. */
+@media (max-width: 1024px), (hover: none), (pointer: coarse) {
+  .film-grain {
+    display: none;
+  }
 }
 
 .vignette {
@@ -304,10 +315,31 @@ html.is-cursor-hidden select {
   }
 }
 
-@media (max-width: 768px) {
-  .film-grain {
-    opacity: 0.03;
-    animation: none;
+@media (max-width: 640px) {
+  /* Four stacked 72px-blur shadows repaint a large area on every pulse. */
+  .logo-neon {
+    box-shadow:
+      0 0 8px 1px rgba(232, 210, 158, 0.5),
+      0 0 26px 6px rgba(214, 178, 118, 0.35);
+  }
+}
+
+/* Keep long Persian headings inside the viewport on 320–400px devices. */
+h1,
+h2,
+h3 {
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* Room for the fixed mobile booking bar (plus the iPhone home indicator). */
+.page-bottom-safe {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .page-bottom-safe {
+    padding-bottom: 0;
   }
 }
 

@@ -20,15 +20,15 @@ export default function PortfolioSection() {
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <div className="mb-12 flex flex-col gap-8 text-right md:mb-16 md:flex-row md:items-end md:justify-between">
           <div><SectionLabel className="mb-5">لُک‌بوک</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-6xl">نمونه‌کارهای ما</h2></div>
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="فیلتر نمونه‌کارها">
-            {PORTFOLIO_FILTERS.map((f) => <button key={f} type="button" role="tab" aria-selected={filter === f} data-cursor="کاوش" onClick={() => setFilter(f)} className={cn("px-4 py-2 text-[16px] tracking-[0.28em] transition-colors duration-300", filter === f ? "bg-champagne text-ink" : "text-ivory/85 hover:text-ivory")}>{f === "All" ? "همه" : SERVICE_CATEGORY_LABELS[f]}</button>)}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2" role="tablist" aria-label="فیلتر نمونه‌کارها">
+            {PORTFOLIO_FILTERS.map((f) => <button key={f} type="button" role="tab" aria-selected={filter === f} data-cursor="کاوش" onClick={() => setFilter(f)} className={cn("px-3 py-2 text-[13px] tracking-[0.18em] transition-colors duration-300 sm:px-4 sm:text-[16px] sm:tracking-[0.28em]", filter === f ? "bg-champagne text-ink" : "text-ivory/85 hover:text-ivory")}>{f === "All" ? "همه" : SERVICE_CATEGORY_LABELS[f]}</button>)}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
           {items.map((item) => <button key={item.id} type="button" data-cursor="مشاهده" onClick={() => setActive(item)} className="group relative aspect-[3/4] overflow-hidden bg-ink-3 text-right">
-            <img src={item.image} alt={`${item.title} — ${item.subtitle}`} className="h-full w-full object-cover transition-transform duration-[1.4s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.07]" style={{ objectPosition: item.objectPosition }} loading="lazy" />
+            <img src={item.image} alt={`${item.title} — ${item.subtitle}`} className="h-full w-full object-cover transition-transform duration-[1.4s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.07]" style={{ objectPosition: item.objectPosition }} loading="lazy" decoding="async" />
             <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent opacity-80 transition-opacity duration-500 group-hover:opacity-100" />
-            <div className="absolute inset-x-0 bottom-0 p-4 translate-y-2 opacity-90 transition-all duration-500 group-hover:translate-y-0"><p className="font-serif text-xl text-ivory">{item.title}</p><p className="mt-1 text-[16px] tracking-[0.28em] text-champagne">{SERVICE_CATEGORY_LABELS[item.category]}</p></div>
+            <div className="absolute inset-x-0 bottom-0 p-2.5 translate-y-2 opacity-90 transition-all duration-500 group-hover:translate-y-0 sm:p-4"><p className="font-serif text-base leading-snug text-ivory sm:text-xl">{item.title}</p><p className="mt-1 text-[12px] tracking-[0.16em] text-champagne sm:text-[16px] sm:tracking-[0.28em]">{SERVICE_CATEGORY_LABELS[item.category]}</p></div>
           </button>)}
         </div>
       </div>

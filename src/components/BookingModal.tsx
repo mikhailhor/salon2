@@ -122,7 +122,7 @@ export default function BookingModal() {
       aria-modal="true"
       aria-label="رزرو نوبت"
     >
-      <div className="absolute inset-0 bg-ink/85 backdrop-blur-sm" onClick={closeBooking} />
+      <div className="absolute inset-0 bg-ink/92 md:bg-ink/85 md:backdrop-blur-sm" onClick={closeBooking} />
       <div className="absolute inset-0 overflow-y-auto md:inset-6 md:overflow-hidden lg:inset-10">
         <div className="relative min-h-full bg-ink md:flex md:min-h-full md:overflow-hidden md:border md:border-white/10">
           <button
@@ -155,20 +155,20 @@ export default function BookingModal() {
                 </div>
               </div>
 
-              <div className="relative flex flex-1 flex-col px-6 py-16 md:overflow-y-auto md:px-10 lg:px-14">
+              <div className="relative flex flex-1 flex-col px-5 py-14 sm:px-6 sm:py-16 md:overflow-y-auto md:px-10 lg:px-14">
                 <SectionLabel className="mb-3">رزرو</SectionLabel>
-                <h2 className="font-serif text-3xl text-ivory md:text-4xl">
+                <h2 className="font-serif text-[1.75rem] text-ivory sm:text-3xl md:text-4xl">
                   رزرو نوبت
                 </h2>
 
-                <ol className="mt-8 mb-10 flex flex-wrap gap-2" aria-label="مراحل رزرو">
+                <ol className="mt-6 mb-8 flex flex-wrap gap-x-2 gap-y-1 sm:mt-8 sm:mb-10 sm:gap-2" aria-label="مراحل رزرو">
                   {STEPS.map((label, i) => (
                     <li key={label}>
                       <button
                         type="button"
                         onClick={() => i <= step && setStep(i)}
                         className={cn(
-                          "px-2 py-1 text-[15px] tracking-[0.22em] uppercase",
+                          "px-1.5 py-1 text-[12px] tracking-[0.14em] uppercase sm:px-2 sm:text-[15px] sm:tracking-[0.22em]",
                           i === step
                             ? "text-champagne"
                             : i < step
@@ -334,7 +334,7 @@ export default function BookingModal() {
                   </p>
                 )}
 
-                <div className="mt-10 flex items-center justify-between gap-4">
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-3 sm:mt-10 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -342,7 +342,7 @@ export default function BookingModal() {
                       if (step === 0) closeBooking();
                       else setStep((s) => s - 1);
                     }}
-                    className="text-[16px] tracking-[0.28em] text-ivory/80 uppercase hover:text-ivory"
+                    className="text-[14px] tracking-[0.2em] text-ivory/80 uppercase hover:text-ivory sm:text-[16px] sm:tracking-[0.28em]"
                   >
                     {step === 0 ? "انصراف" : "بازگشت"}
                   </button>
@@ -352,7 +352,7 @@ export default function BookingModal() {
                     </GoldButton>
                   ) : (
                     <GoldButton type="button" onClick={confirm}>
-                      تأیید نهایی نوبت
+                      تأیید نهایی
                     </GoldButton>
                   )}
                 </div>
