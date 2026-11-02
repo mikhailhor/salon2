@@ -163,8 +163,19 @@ export function useCinematicVideo(
       }
     };
 
+    // The first decodable frame can land later than the no-hammering budget
+    // above allows (cold cache, slow link, big GOP). Any "we now have data"
+    // signal resets that budget and re-kicks the loop, so a slow first frame
+    // cannot permanently freeze the frames and never re-arm.
+    const onReady = () => {
+      startedAt = performance.now();
+      schedule();
+    };
+
     video.addEventListener("seeking", onSeeking);
     video.addEventListener("seeked", onSeeked);
+    video.addEventListener("loadeddata", onReady);
+    video.addEventListener("canplay", onReady);
     startedAt = performance.now();
     schedule();
 
@@ -173,6 +184,8 @@ export function useCinematicVideo(
       stop();
       video.removeEventListener("seeking", onSeeking);
       video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("loadeddata", onReady);
+      video.removeEventListener("canplay", onReady);
     };
   }, [enabled, playMode, videoRef]);
 
