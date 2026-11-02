@@ -38,7 +38,10 @@ function Root() {
   }, [cinematic]);
 
   return (
-    <div dir="rtl" className="page-bottom-safe min-h-screen bg-ink text-ivory">
+    <div
+      dir="rtl"
+      className="min-h-screen bg-ink pb-[calc(4rem+env(safe-area-inset-bottom,0px))] text-ivory lg:pb-0"
+    >
       <Preloader />
       <div className="film-grain" aria-hidden="true" />
       <CustomCursor />

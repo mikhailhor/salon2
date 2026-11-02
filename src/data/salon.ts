@@ -13,13 +13,6 @@ export const IMAGES = {
 
 export const ALL_IMAGES = Object.values(IMAGES);
 
-/** Only the art the first screen actually needs — the rest lazy-loads. */
-export const CRITICAL_IMAGES: readonly string[] = [
-  IMAGES.hero,
-  IMAGES.brandModel,
-  IMAGES.makeup,
-];
-
 /** Shared background clip: scrubbed by the cinematic track, played natively elsewhere. */
 export const CINEMATIC_VIDEO = "/cinematic2.mp4";
 

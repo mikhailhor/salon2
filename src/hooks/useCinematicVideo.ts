@@ -53,10 +53,11 @@ export function useCinematicVideo(
 
   const kickRef = useRef<() => void>(() => {});
 
-  const [degraded, setDegraded] = useState(false);
+  const [degraded] = useState(false);
   const [inView, setInView] = useState(true);
 
-  const playMode = mode === "play" || degraded;
+  // Locked strictly to scrub mode across all devices
+  const playMode = false;
 
   /* Real duration, once the browser knows it. */
   useEffect(() => {
@@ -152,21 +153,8 @@ export function useCinematicVideo(
       seekingAt = performance.now();
     };
     const onSeeked = () => {
-      if (!seekingAt) return;
-      const cost = performance.now() - seekingAt;
       seekingAt = 0;
-      if (cost > 260) {
-        slowSeeks += 1;
-        if (slowSeeks >= 3) setDegraded(true);
-      } else if (slowSeeks > 0) {
-        slowSeeks -= 1;
-      }
     };
-
-    // The first decodable frame can land later than the no-hammering budget
-    // above allows (cold cache, slow link, big GOP). Any "we now have data"
-    // signal resets that budget and re-kicks the loop, so a slow first frame
-    // cannot permanently freeze the frames and never re-arm.
     const onReady = () => {
       startedAt = performance.now();
       schedule();

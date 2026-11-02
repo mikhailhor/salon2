@@ -26,8 +26,6 @@ const VIDEO_FALLBACK_IMG = "/images/services/makeup.jpg";
 const NAILS_INDEX = 6;
 const VIDEO_DURATION = 15;
 const VIDEO_END_PROGRESS = 0.62;
-/** Scenes whose opacity is below this are unmounted instead of just hidden. */
-const VISIBLE_EPS = 0.004;
 
 function progressToVideoTime(progress: number): number {
   return clamp(progress / VIDEO_END_PROGRESS) * VIDEO_DURATION;
@@ -42,12 +40,12 @@ export default function CinematicExperience() {
    * film: identical scenes and copy, no video bytes and no decoding cost.
    */
   const videoAllowed = useVideoAllowed(reducedMotion);
-  const stills = reducedMotion || !videoAllowed;
+  const stills = false;
   const trackRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progress = useCinematicProgress(trackRef, true, reducedMotion, touch);
 
-  const heroOp = fadeWindow(progress, -0.04, 0.125, 0.04);
+  const heroOp = fadeWindow(progress, 0, 0.125, 0.04);
   const brandOp = fadeWindow(progress, 0.115, 0.245, 0.04);
   const servicesOp = fadeWindow(progress, 0.23, 0.625, 0.04);
   const journeyOp = fadeWindow(progress, 0.61, 0.885, 0.04);
@@ -112,12 +110,10 @@ export default function CinematicExperience() {
    * and native — which is the smoothest possible "video showcase" there.
    */
   useCinematicVideo(videoRef, {
-    mode: touch ? "play" : "scrub",
+    mode: "scrub",
     targetTime: videoTarget,
-    // On touch the clip waits for the curtain so it never competes with the
-    // hero imagery for the first megabytes of a mobile connection.
-    active: !stills && videoOp > 0.02 && (!touch || loaded),
-    enabled: !stills,
+    active: videoOp > 0.02,
+    enabled: true,
     duration: VIDEO_DURATION,
   });
 
@@ -175,7 +171,7 @@ export default function CinematicExperience() {
             muted
             playsInline
             disablePictureInPicture
-            preload={touch ? "metadata" : "auto"}
+            preload="auto"
             aria-hidden="true"
           />
         )}
@@ -188,11 +184,11 @@ export default function CinematicExperience() {
         )}
 
         {/* SCENE 01 — HERO */}
-        {heroOp > VISIBLE_EPS && (
         <div
           className="absolute inset-0"
           style={{
             opacity: heroOp,
+            visibility: heroOp < 0.02 ? "hidden" : "visible",
             pointerEvents: heroOp > 0.35 ? "auto" : "none",
             filter: blurFilter(heroOp),
           }}
@@ -208,7 +204,6 @@ export default function CinematicExperience() {
                 transform: `scale(${ken(rangeProgress(progress, 0, 0.12))})`,
               }}
               fetchPriority="high"
-              decoding="async"
             />
           )}
           {stills && (
@@ -241,14 +236,13 @@ export default function CinematicExperience() {
             <span className="h-10 w-px origin-top bg-champagne/80" style={{ animation: "scroll-hint 2.2s ease-in-out infinite" }} />
           </div>
         </div>
-        )}
 
         {/* SCENE 02 — BRAND */}
-        {brandOp > VISIBLE_EPS && (
         <div
           className="absolute inset-0"
           style={{
             opacity: brandOp,
+            visibility: brandOp < 0.02 ? "hidden" : "visible",
             pointerEvents: brandOp > 0.35 ? "auto" : "none",
             filter: blurFilter(brandOp),
           }}
@@ -263,7 +257,6 @@ export default function CinematicExperience() {
                 objectPosition: "center 12%",
                 transform: `scale(${ken(rangeProgress(progress, 0.12, 0.24))})`,
               }}
-              decoding="async"
             />
           )}
           {stills && (
@@ -293,14 +286,13 @@ export default function CinematicExperience() {
             </div>
           </div>
         </div>
-        )}
 
         {/* SCENE 03 — SERVICES */}
-        {servicesOp > VISIBLE_EPS && (
         <div
           className="absolute inset-0"
           style={{
             opacity: servicesOp,
+            visibility: servicesOp < 0.02 ? "hidden" : "visible",
             pointerEvents: servicesOp > 0.35 ? "auto" : "none",
             filter: blurFilter(servicesOp),
           }}
@@ -309,15 +301,12 @@ export default function CinematicExperience() {
           {stills
             ? CINEMATIC_SERVICES.map((item, i) => {
                 const dist = Math.abs(svcFloat - i);
-                if (dist > 1.5) return null;
                 const op = clamp(1 - dist * 0.95);
                 return (
                   <img
                     key={item.id}
                     src={item.image}
                     alt=""
-                    loading="lazy"
-                    decoding="async"
                     className="absolute inset-0 h-full w-full object-cover"
                     style={{
                       objectPosition: item.objectPosition,
@@ -331,8 +320,6 @@ export default function CinematicExperience() {
               <img
                 src={IMAGES.nails}
                 alt="آرت ناخن در نور آتلیه"
-                loading="lazy"
-                decoding="async"
                 className="absolute inset-0 h-full w-full object-cover"
                 style={{
                   opacity: clamp(1 - Math.abs(svcFloat - NAILS_INDEX) * 0.95),
@@ -366,14 +353,13 @@ export default function CinematicExperience() {
             </div>
           </div>
         </div>
-        )}
 
         {/* SCENE 04 — JOURNEY */}
-        {journeyOp > VISIBLE_EPS && (
         <div
           className="absolute inset-0"
           style={{
             opacity: journeyOp,
+            visibility: journeyOp < 0.02 ? "hidden" : "visible",
             pointerEvents: journeyOp > 0.35 ? "auto" : "none",
             filter: blurFilter(journeyOp),
           }}
@@ -381,7 +367,6 @@ export default function CinematicExperience() {
         >
           {JOURNEY.map((step, i) => {
             const dist = Math.abs(jourFloat - i);
-            if (dist > 1.5) return null;
             const op = clamp(1 - dist * 0.9);
             if (step.id === "final") return null;
             return (
@@ -389,8 +374,6 @@ export default function CinematicExperience() {
                 key={step.id}
                 src={step.image}
                 alt=""
-                loading="lazy"
-                decoding="async"
                 className="absolute inset-0 h-full w-full object-cover"
                 style={{
                   opacity: op,
@@ -402,14 +385,15 @@ export default function CinematicExperience() {
           })}
 
           {/* Final look before / after */}
-          {jour.id === "final" && (
-          <div className="absolute inset-0">
+          <div
+            className="absolute inset-0"
+            style={{ opacity: jour.id === "final" ? 1 : 0 }}
+          >
             <img
               src={IMAGES.hair}
               alt="پیش از سیتینگ"
               className="absolute inset-0 h-full w-full object-cover"
               style={{ objectPosition: "center 20%" }}
-              decoding="async"
             />
             <div
               className="absolute inset-0 overflow-hidden"
@@ -422,7 +406,6 @@ export default function CinematicExperience() {
                 alt="پس از سیتینگ"
                 className="absolute inset-0 h-full w-full object-cover"
                 style={{ objectPosition: "center 18%" }}
-                decoding="async"
               />
             </div>
             <div
@@ -436,7 +419,6 @@ export default function CinematicExperience() {
               پس از سیتینگ
             </span>
           </div>
-          )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
           <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-16 lg:px-24">
@@ -466,14 +448,13 @@ export default function CinematicExperience() {
             </div>
           </div>
         </div>
-        )}
 
         {/* SCENE 05 — FINALE */}
-        {finaleOp > VISIBLE_EPS && (
         <div
           className="absolute inset-0"
           style={{
             opacity: finaleOp,
+            visibility: finaleOp < 0.02 ? "hidden" : "visible",
             pointerEvents: finaleOp > 0.35 ? "auto" : "none",
             filter: blurFilter(finaleOp),
           }}
@@ -487,7 +468,6 @@ export default function CinematicExperience() {
               objectPosition: "center center",
               transform: `scale(${ken(rangeProgress(progress, 0.88, 1))})`,
             }}
-            decoding="async"
           />
           <div className="absolute inset-0 bg-ink/60" />
           <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 text-center md:pb-0">
@@ -513,7 +493,6 @@ export default function CinematicExperience() {
             </div>
           </div>
         </div>
-        )}
 
         {/* Scene rail — compact, thumb-reachable version for phones/tablets */}
         <ol className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 lg:hidden">

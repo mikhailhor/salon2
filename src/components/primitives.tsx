@@ -58,20 +58,14 @@ export function Logo({
           style={{ inset: `calc(-1 * ${ringGap} + 2px)` }}
           aria-hidden="true"
         />
-        <picture>
-          <source srcSet="/logo.webp" type="image/webp" />
-          <img
-            src="/logo.png"
-            alt="لیندا"
-            width={512}
-            height={512}
-            data-intro-mark=""
-            className={cn(
-              "logo-neon-img relative h-16 w-auto object-contain",
-              markClassName,
-            )}
-          />
-        </picture>
+        <img
+          src="/logo.png"
+          alt="لیندا"
+          className={cn(
+            "logo-neon-img relative h-16 w-auto object-contain",
+            markClassName,
+          )}
+        />
       </span>
       {withText && (
         <span className="font-serif text-[1.35rem] font-normal tracking-[0.28em] uppercase">
@@ -91,7 +85,7 @@ export function GoldButton({
     <button
       data-cursor="رزرو"
       className={cn(
-        "gold-btn group relative inline-flex items-center justify-center gap-3 overflow-hidden rounded-full px-7 py-3.5 font-sans text-[14px] font-bold uppercase tracking-[0.22em] whitespace-nowrap text-ink transition-all duration-500 hover:-translate-y-0.5 sm:px-9 sm:py-4 sm:text-[16px] sm:tracking-[0.32em]",
+        "gold-btn group relative inline-flex items-center justify-center gap-3 overflow-hidden rounded-full px-9 py-4 font-sans text-[16px] font-bold uppercase tracking-[0.32em] text-ink transition-all duration-500 hover:-translate-y-0.5",
         className,
       )}
       {...props}
@@ -118,7 +112,7 @@ export function GhostButton({
     <button
       data-cursor="کاوش"
       className={cn(
-        "inline-flex items-center justify-center border border-champagne/40 px-6 py-3 font-sans text-[14px] font-bold uppercase tracking-[0.2em] whitespace-nowrap text-ivory transition-colors duration-500 hover:border-champagne hover:bg-champagne/10 sm:px-8 sm:py-3.5 sm:text-[16px] sm:tracking-[0.32em]",
+        "inline-flex items-center justify-center border border-champagne/40 px-8 py-3.5 font-sans text-[16px] font-bold uppercase tracking-[0.32em] text-ivory transition-colors duration-500 hover:border-champagne hover:bg-champagne/10",
         className,
       )}
       {...props}
@@ -138,7 +132,7 @@ export function SectionLabel({
   return (
     <p
       className={cn(
-        "text-[13px] font-bold uppercase tracking-[0.3em] text-champagne sm:text-[16px] sm:tracking-[0.42em]",
+        "text-[16px] font-bold uppercase tracking-[0.42em] text-champagne",
         className,
       )}
     >

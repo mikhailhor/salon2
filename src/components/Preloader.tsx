@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { CRITICAL_IMAGES, BRAND } from "@/data/salon";
+import { ALL_IMAGES, BRAND, CINEMATIC_VIDEO } from "@/data/salon";
 import { Mark } from "@/components/primitives";
 import { useSalon } from "@/context/SalonContext";
-import { prefersLightData, useIsTouch } from "@/hooks/useMedia";
 
 export default function Preloader() {
   const { setLoaded, reducedMotion } = useSalon();
-  const touch = useIsTouch();
   const [progress, setProgress] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
@@ -14,43 +12,59 @@ export default function Preloader() {
   useEffect(() => {
     let mounted = true;
     const started = performance.now();
-
-    /**
-     * Warming the cache is nice on wifi and rude on a phone hotspot, and it
-     * must never hold the visitor hostage: the curtain lifts after `cap` at the
-     * latest, no matter how many images are still in flight.
-     */
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    const cap = reducedMotion ? 250 : touch ? 2400 : 4200;
+
+    const totalAssets = ALL_IMAGES.length + 1; // images + cinematic video
 
     const load = async () => {
       let done = 0;
-      const warm =
-        prefersLightData() || CRITICAL_IMAGES.length === 0
-          ? Promise.resolve()
-          : Promise.all(
-              CRITICAL_IMAGES.map(
-                (src) =>
-                  new Promise<void>((resolve) => {
-                    const img = new Image();
-                    const settle = () => {
-                      done += 1;
-                      if (mounted) setProgress(done / CRITICAL_IMAGES.length);
-                      resolve();
-                    };
-                    img.onload = settle;
-                    img.onerror = settle;
-                    img.src = src;
-                  }),
-              ),
-            ).then(() => undefined);
 
-      // Never let a slow network hold the page hostage.
-      await Promise.race([warm, wait(cap)]);
+      const increment = () => {
+        done += 1;
+        if (mounted) setProgress(done / totalAssets);
+      };
+
+      const imagePromises = ALL_IMAGES.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            const img = new Image();
+            const settle = () => {
+              increment();
+              resolve();
+            };
+            img.onload = settle;
+            img.onerror = settle;
+            img.src = src;
+          }),
+      );
+
+      // Ensure video is buffered so scrubbing on scroll is available immediately
+      const videoPromise = new Promise<void>((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "auto";
+        video.muted = true;
+        const settle = () => {
+          video.removeEventListener("canplaythrough", settle);
+          video.removeEventListener("canplay", settle);
+          video.removeEventListener("loadeddata", settle);
+          video.removeEventListener("error", settle);
+          increment();
+          resolve();
+        };
+
+        video.addEventListener("canplaythrough", settle, { once: true });
+        video.addEventListener("canplay", settle, { once: true });
+        video.addEventListener("loadeddata", settle, { once: true });
+        video.addEventListener("error", settle, { once: true });
+        video.src = CINEMATIC_VIDEO;
+        video.load();
+      });
+
+      await Promise.all([...imagePromises, videoPromise]);
       if (!mounted) return;
       setProgress(1);
 
-      const min = reducedMotion ? 200 : 1600;
+      const min = reducedMotion ? 200 : 1200;
       await wait(Math.max(0, min - (performance.now() - started)));
       if (!mounted) return;
       setProgress(1);
