@@ -24,7 +24,7 @@ export function StorySections() {
         <div className="vignette absolute inset-0" />
         <div className="relative z-10 max-w-[1440px] px-6 py-28 text-right md:mr-auto md:px-16 lg:px-24">
           <SectionLabel className="mb-6">آرامش زیبایی تهران</SectionLabel>
-          <h1 className="max-w-[12ch] font-serif text-[2.4rem] leading-[1.15] font-light text-ivory sm:text-7xl lg:text-8xl">زیبایی، از نو تعریف می‌شود.</h1>
+          <h1 className="max-w-[12ch] font-serif text-5xl leading-[1.15] font-light text-ivory sm:text-7xl lg:text-8xl">زیبایی، از نو تعریف می‌شود.</h1>
           <p className="mt-8 max-w-md text-sm leading-relaxed text-ivory-2 md:text-base">مزونی خصوصی برای مو، رنگ، پوست و میکاپ؛ هر سیتینگ با آرامش و نگاه ادیتوریال، کاملاً برای شما طراحی می‌شود.</p>
           <div className="mt-10 flex flex-wrap gap-4">
             <GoldButton type="button" onClick={() => openBooking()}>رزرو نوبت</GoldButton>
@@ -145,11 +145,11 @@ export function JourneyBlock() {
           ))}
         </ol>
         <div className="relative mt-20 aspect-[16/8] overflow-hidden">
-          <img src={IMAGES.hair} alt="پیش از سیتینگ" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} loading="lazy" decoding="async" />
-          <div className="absolute inset-0 overflow-hidden" style={{ clipPath: "inset(0 42% 0 0)" }}><img src={IMAGES.hero} alt="پس از سیتینگ" className="h-full w-full object-cover" style={{ objectPosition: "center 18%" }} loading="lazy" decoding="async" /></div>
+          <img src={IMAGES.hair} alt="پیش از سیتینگ" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 20%" }} loading="lazy" />
+          <div className="absolute inset-0 overflow-hidden" style={{ clipPath: "inset(0 42% 0 0)" }}><img src={IMAGES.hero} alt="پس از سیتینگ" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 18%" }} loading="lazy" /></div>
           <div className="absolute top-0 bottom-0 left-[58%] w-px bg-champagne" />
-          <span className="absolute bottom-3 left-3 text-[11px] tracking-[0.14em] text-ivory uppercase sm:bottom-6 sm:left-6 sm:text-[15px] sm:tracking-[0.3em]">پیش از سیتینگ</span>
-          <span className="absolute right-3 bottom-3 text-[11px] tracking-[0.14em] text-ivory uppercase sm:right-6 sm:bottom-6 sm:text-[15px] sm:tracking-[0.3em]">پس از سیتینگ</span>
+          <span className="absolute bottom-6 left-6 text-[16px] tracking-[0.3em] text-ivory">پیش از سیتینگ</span>
+          <span className="absolute right-6 bottom-6 text-[16px] tracking-[0.3em] text-ivory">پس از سیتینگ</span>
         </div>
       </div>
     </section>

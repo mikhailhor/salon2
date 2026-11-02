@@ -44,9 +44,9 @@ export default function Header() {
       </a>
       <header
         className={cn(
-          "fixed top-0 right-0 left-0 z-40 transition-[background,border-color] duration-500",
+          "fixed top-0 right-0 left-0 z-40 transition-[background,border-color,backdrop-filter] duration-500",
           scrolled || menu
-            ? "border-b border-white/5 bg-ink/95 lg:bg-ink/78 lg:backdrop-blur-md"
+            ? "border-b border-white/5 bg-ink/95 pointer-fine:bg-ink/78 pointer-fine:backdrop-blur-md"
             : "border-b border-transparent bg-transparent",
           bookingOpen && "pointer-events-none opacity-0",
         )}
@@ -113,7 +113,7 @@ export default function Header() {
 
       <div
         className={cn(
-          "fixed inset-0 z-[46] flex flex-col justify-end bg-ink/97 transition-opacity duration-500 lg:hidden",
+          "fixed inset-0 z-30 flex flex-col justify-end bg-ink/96 backdrop-blur-md transition-opacity duration-500 lg:hidden",
           menu ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         aria-hidden={!menu}
@@ -124,7 +124,7 @@ export default function Header() {
               key={item.id}
               type="button"
               onClick={() => go(item.id)}
-              className="border-b border-white/8 py-4 text-right font-serif text-[1.75rem] text-ivory sm:text-4xl"
+              className="border-b border-white/8 py-4 text-right font-serif text-4xl text-ivory"
               style={{
                 transform: menu ? "translateY(0)" : "translateY(12px)",
                 opacity: menu ? 1 : 0,

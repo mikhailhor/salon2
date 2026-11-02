@@ -48,7 +48,7 @@ export default function Footer() {
           </p>
           <ul className="space-y-3 text-sm text-ivory-2">
             {BRAND.phones.map((p) => (
-              <li key={p.value} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <li key={p.value} className="flex items-baseline justify-between gap-6">
                 <span className="text-mist">{p.label}</span>
                 <a
                   href={p.wa ? `https://wa.me/${p.wa}` : `tel:${p.tel}`}

@@ -52,7 +52,7 @@ export function useIsTablet() {
  * better experience.
  */
 export function useCinematicCapable() {
-  return useMediaQuery("(min-width: 320px) and (min-height: 480px)");
+  return true;
 }
 
 /** Touch input is available (phones, tablets, touch laptops, touch screens). */
@@ -62,29 +62,14 @@ export function useIsTouch() {
 
 /** Data saver or a 2g/3g radio: skip eager media, keep the page light. */
 export function prefersLightData() {
-  if (typeof navigator === "undefined") return false;
-  const conn = getConnection();
-  if (!conn) return false;
-  if (conn.saveData) return true;
-  return ["slow-2g", "2g", "3g"].includes(conn.effectiveType ?? "");
+  return false;
 }
 
 /**
- * Video backgrounds are only worth their bytes on decent connections.
- * Respects `prefers-reduced-motion`, data saver and 2g/3g networks.
+ * Cinematic video is always enabled across all devices and connection types.
  */
-export function useVideoAllowed(reducedMotion: boolean) {
-  const [allowed, setAllowed] = useState(() => canPlayVideo());
-
-  useEffect(() => {
-    const apply = () => setAllowed(canPlayVideo());
-    apply();
-    const conn = getConnection();
-    conn?.addEventListener?.("change", apply);
-    return () => conn?.removeEventListener?.("change", apply);
-  }, []);
-
-  return allowed && !reducedMotion;
+export function useVideoAllowed(_reducedMotion: boolean) {
+  return true;
 }
 
 interface NetworkInformation {
@@ -163,7 +148,6 @@ export function useCinematicProgress(
     // Cached metrics (document space).
     let top = 0;
     let span = 1;
-
 
     const measure = () => {
       const rect = el.getBoundingClientRect();
@@ -281,19 +265,17 @@ export function useScrolled(threshold = 24) {
 
   useEffect(() => {
     let raf = 0;
-    const apply = () => {
+    const read = () => {
       raf = 0;
-      const next = window.scrollY > threshold;
-      setScrolled((prev) => (prev === next ? prev : next));
+      setScrolled(window.scrollY > threshold);
     };
     const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(apply);
+      if (!raf) raf = requestAnimationFrame(read);
     };
-    apply();
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
     };
   }, [threshold]);

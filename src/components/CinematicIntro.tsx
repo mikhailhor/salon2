@@ -9,52 +9,39 @@ export default function CinematicIntro() {
   useEffect(() => {
     let raf = 0;
     let alive = true;
-    let queued = false;
-    let rendered = -1;
 
     // easeInOutCubic — accelerates out of centre, settles softly into the corner
     const ease = (t: number) =>
       t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-    const measureTarget = () => {
-      const mark = document.querySelector<HTMLElement>("[data-intro-mark]");
-      if (mark) {
-        const r = mark.getBoundingClientRect();
-        if (r.width > 0) {
-          return { x: r.right - r.width / 2, y: r.top + r.height / 2 };
-        }
-      }
-      const w = window.innerWidth;
-      const desktop = w >= 1024;
-      return { x: w - (desktop ? 80 : 42), y: desktop ? 55 : 42 };
-    };
-
     const update = () => {
       if (!alive) return;
-      raf = 0;
-      queued = false;
-
       const p = Math.min(1, Math.max(0, window.scrollY / 320));
-      // Nothing to do while parked at either end — this is the common case.
-      if (rendered === p) return;
-
       const pe = ease(p);
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const target = measureTarget();
-      const dx = (target.x - w / 2) * pe;
-      const dy = (target.y - h / 2) * pe;
+      const desktop = w >= 1024;
+      const medium = w >= 768;
+      // target: the header logo, anchored top-right (RTL).
+      // Header paddings: px-5 / md:px-8 / lg:px-12.
+      const pad = desktop ? 48 : medium ? 32 : 20;
       // End scale is derived from the rendered sizes rather than hard-coded,
       // so the mark always lands exactly on the header logo — even when the
       // intro logo is capped by a narrow viewport.
-      const headerMark = w >= 1024 ? 88 : w >= 768 ? 80 : 68;
-      const introMark = imgRef.current?.offsetHeight || (w >= 768 ? 384 : 288);
+      const headerMark = desktop ? 88 : medium ? 80 : 68;
+      const cornerX = w - pad - headerMark / 2;
+      // Half of the header height: h-[108px] / md:h-[112px] / lg:h-[136px].
+      const cornerY = desktop ? 68 : medium ? 56 : 54;
+      const introMark = imgRef.current?.offsetHeight || (desktop ? 384 : 288);
       const endScale = headerMark / introMark;
+      const dx = (cornerX - w / 2) * pe;
+      const dy = (cornerY - h / 2) * pe;
       const s = 1 - pe * (1 - endScale);
 
       if (logoRef.current) {
         logoRef.current.style.transform =
           `translate3d(${dx}px, ${dy}px, 0) scale(${s})`;
+        logoRef.current.style.filter = `blur(${(1 - pe) * 0.6}px)`;
       }
       if (wrapRef.current) {
         wrapRef.current.style.opacity = String(Math.max(0, 1 - pe * 1.35));
@@ -65,23 +52,17 @@ export default function CinematicIntro() {
       if (hintRef.current) {
         hintRef.current.style.opacity = String(Math.max(0, 1 - p * 3));
       }
-      rendered = p;
+      if (p < 1) raf = requestAnimationFrame(update);
     };
 
-    const queue = () => {
-      if (queued || !alive) return;
-      queued = true;
-      raf = requestAnimationFrame(update);
-    };
-
-    update();
-    window.addEventListener("scroll", queue, { passive: true });
-    window.addEventListener("resize", queue);
+    raf = requestAnimationFrame(update);
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", queue);
-      window.removeEventListener("resize", queue);
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
     };
   }, []);
 
@@ -102,17 +83,12 @@ export default function CinematicIntro() {
               className="logo-neon-core absolute -inset-3 rounded-full md:-inset-4"
               aria-hidden="true"
             />
-            <picture>
-              <source srcSet="/logo.webp" type="image/webp" />
-              <img
-                ref={imgRef}
-                src="/logo.png"
-                alt=""
-                width={512}
-                height={512}
-                className="logo-neon-img relative h-[min(18rem,74vw)] w-auto object-contain md:h-96"
-              />
-            </picture>
+            <img
+              ref={imgRef}
+              src="/logo.png"
+              alt=""
+              className="logo-neon-img relative h-[min(18rem,74vw)] w-auto object-contain md:h-96"
+            />
           </div>
         </div>
       </div>
