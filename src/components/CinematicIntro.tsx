@@ -75,17 +75,9 @@ export default function CinematicIntro() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         <div ref={logoRef} className="will-change-transform">
           <div className="relative flex items-center justify-center">
-            <span
-              className="logo-neon absolute -inset-5 rounded-full md:-inset-6"
-              aria-hidden="true"
-            />
-            <span
-              className="logo-neon-core absolute -inset-3 rounded-full md:-inset-4"
-              aria-hidden="true"
-            />
             <img
               ref={imgRef}
-              src="/logo.png"
+              src="/logo.webp"
               alt=""
               className="logo-neon-img relative h-[min(18rem,74vw)] w-auto object-contain md:h-96"
             />

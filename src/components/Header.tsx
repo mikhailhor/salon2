@@ -55,8 +55,6 @@ export default function Header() {
           <Logo
             onClick={() => go("home")}
             withText={false}
-            /* A clear ring of dark air between the mark and its halo. */
-            ringGap="0.85rem"
             markClassName="h-[4.25rem] w-auto md:h-20 lg:h-[5.5rem]"
           />
 

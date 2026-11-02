@@ -177,26 +177,15 @@ html.is-cursor-hidden select {
   background: linear-gradient(90deg, transparent, #c6a56a, transparent);
 }
 
-.logo-neon {
-  background: transparent;
-  border-radius: 999px;
-  box-shadow:
-    0 0 8px 1px rgba(232, 210, 158, 0.55),
-    0 0 22px 5px rgba(214, 178, 118, 0.42),
-    0 0 44px 12px rgba(198, 165, 106, 0.3),
-    0 0 72px 22px rgba(198, 165, 106, 0.2);
-  filter: none;
-  animation: logo-neon-pulse 6s ease-in-out infinite;
-}
-
-.logo-neon-core {
-  background: rgba(8, 8, 8, 0.9);
-  border-radius: 999px;
-  filter: none;
-}
-
+/* Neon glow hugging the crest itself: layered gold drop-shadows follow the
+   artwork's silhouette — no ring/circle around it — breathing like neon. */
 .logo-neon-img {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.75));
+  filter:
+    drop-shadow(0 0 3px rgba(255, 233, 175, 0.8))
+    drop-shadow(0 0 10px rgba(235, 199, 112, 0.5))
+    drop-shadow(0 0 26px rgba(216, 168, 76, 0.38))
+    drop-shadow(0 0 54px rgba(198, 165, 106, 0.26));
+  animation: logo-neon-pulse 4.6s ease-in-out infinite;
 }
 
 .gold-btn {
@@ -267,16 +256,22 @@ html.is-cursor-hidden select {
 @keyframes logo-neon-pulse {
   0%,
   100% {
-    opacity: 0.6;
+    filter:
+      drop-shadow(0 0 2px rgba(255, 233, 175, 0.55))
+      drop-shadow(0 0 8px rgba(235, 199, 112, 0.34))
+      drop-shadow(0 0 20px rgba(216, 168, 76, 0.24))
+      drop-shadow(0 0 42px rgba(198, 165, 106, 0.15));
   }
   50% {
-    opacity: 1;
+    filter:
+      drop-shadow(0 0 4px rgba(255, 240, 195, 0.95))
+      drop-shadow(0 0 14px rgba(240, 208, 122, 0.62))
+      drop-shadow(0 0 34px rgba(224, 178, 84, 0.48))
+      drop-shadow(0 0 68px rgba(198, 165, 106, 0.32));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .logo-neon,
-  .logo-neon-core,
   .logo-neon-img {
     animation: none;
   }
