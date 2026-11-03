@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { SalonProvider, useSalon } from "@/context/SalonContext";
+import { startRuntimeMonitor } from "@/hooks/usePerformance";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CustomCursor from "@/components/CustomCursor";
@@ -23,8 +24,37 @@ export default function App() {
   );
 }
 
+/**
+ * Once the curtain is up, watch real frame times. A device that looked capable
+ * on paper but cannot hold a smooth frame rate is switched to the cheap cut
+ * once, and the choice is remembered for the next visit.
+ */
+function PerformanceGuard() {
+  const { loaded } = useSalon();
+
+  useEffect(() => {
+    if (!loaded) return;
+    let stop: (() => void) | undefined;
+    const timer = window.setTimeout(() => {
+      stop = startRuntimeMonitor();
+    }, 1800);
+    return () => {
+      window.clearTimeout(timer);
+      stop?.();
+    };
+  }, [loaded]);
+
+  return null;
+}
+
 function Root() {
-  const { cinematic } = useSalon();
+  const { cinematic, bookingOpen } = useSalon();
+  const [modalMounted, setModalMounted] = useState(false);
+
+  /** Keep the (large) booking DOM out of the initial page entirely. */
+  useEffect(() => {
+    if (bookingOpen) setModalMounted(true);
+  }, [bookingOpen]);
 
   /**
    * While the pinned cinematic track is on screen the page owns the scroll
@@ -42,6 +72,7 @@ function Root() {
       dir="rtl"
       className="min-h-screen bg-ink pb-[calc(4rem+env(safe-area-inset-bottom,0px))] text-ivory lg:pb-0"
     >
+      <PerformanceGuard />
       <Preloader />
       <div className="film-grain" aria-hidden="true" />
       <CustomCursor />
@@ -61,7 +92,7 @@ function Root() {
       </main>
       <Footer />
       <MobileBookBar />
-      <BookingModal />
+      {modalMounted && <BookingModal />}
     </div>
   );
 }

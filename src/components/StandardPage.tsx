@@ -8,7 +8,8 @@ import {
 } from "@/data/salon";
 import { useSalon } from "@/context/SalonContext";
 import { useVideoAllowed } from "@/hooks/useMedia";
-import { useCinematicVideo } from "@/hooks/useCinematicVideo";
+import { useNativeVideo } from "@/hooks/useCinematicVideo";
+import { useQuality } from "@/hooks/usePerformance";
 import { GoldButton, GhostButton, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
@@ -33,7 +34,7 @@ export function StorySections() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-ink py-24 md:py-32">
+      <section className="render-defer relative overflow-hidden bg-ink py-24 md:py-32">
         <div className="mx-auto grid max-w-[1440px] items-center gap-12 px-5 md:grid-cols-2 md:px-8 lg:px-12">
           <div className="relative aspect-[3/4] overflow-hidden md:aspect-[4/5]"><img src={IMAGES.brandModel} alt="موج‌های عسلی مو در نور آتلیه" className="h-full w-full object-cover" style={{ objectPosition: "center 12%" }} loading="lazy" /></div>
           <div className="max-w-lg text-right">
@@ -61,6 +62,7 @@ export function StorySections() {
  */
 function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
   const { loaded } = useSalon();
+  const quality = useQuality();
   const ref = useRef<HTMLVideoElement | null>(null);
   const [ready, setReady] = useState(false);
   const [armed, setArmed] = useState(false);
@@ -72,13 +74,9 @@ function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
     return () => window.clearTimeout(t);
   }, []);
 
-  const allowed = useVideoAllowed(reducedMotion) && (loaded || armed);
+  const allowed = useVideoAllowed(reducedMotion, quality) && (loaded || armed);
 
-  useCinematicVideo(ref, {
-    mode: "play",
-    active: allowed,
-    enabled: allowed,
-  });
+  useNativeVideo(ref, { active: allowed, enabled: allowed });
 
   if (!allowed) return null;
 
@@ -91,7 +89,7 @@ function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
       loop
       playsInline
       autoPlay
-      preload="auto"
+      preload="metadata"
       disablePictureInPicture
       aria-hidden="true"
       onLoadedData={() => setReady(true)}
@@ -107,7 +105,7 @@ function HeroVideo({ reducedMotion }: { reducedMotion: boolean }) {
 export function ServicesBlock() {
   const { openBooking } = useSalon();
   return (
-    <section id="services" className="scroll-mt-28 lg:scroll-mt-40 bg-ink-2 py-24 md:py-32">
+    <section id="services" className="render-defer scroll-mt-28 lg:scroll-mt-40 bg-ink-2 py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <div className="mb-16 flex flex-col items-start justify-between gap-6 text-right md:flex-row md:items-end">
           <div><SectionLabel className="mb-5">آتلیه</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-6xl">خدمات</h2></div>
@@ -130,7 +128,7 @@ export function ServicesBlock() {
 
 export function JourneyBlock() {
   return (
-    <section id="ritual" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
+    <section id="ritual" className="render-defer scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto max-w-[1440px] px-5 md:px-8 lg:px-12">
         <SectionLabel className="mb-5">مسیر</SectionLabel>
         <h2 className="mb-16 max-w-[16ch] font-serif text-4xl font-light text-ivory sm:text-6xl">از رزرو تا زیبایی</h2>
@@ -159,7 +157,7 @@ export function JourneyBlock() {
 export function AppointmentCta() {
   const { openBooking } = useSalon();
   return (
-    <section className="relative overflow-hidden bg-ink-2">
+    <section className="render-defer relative overflow-hidden bg-ink-2">
       <div className="mx-auto grid max-w-[1440px] items-center gap-12 px-5 py-24 md:grid-cols-2 md:px-8 md:py-28 lg:px-12">
         <div className="relative mx-auto w-full max-w-md"><div className="rounded-[2rem] border border-white/10 bg-ink p-3 shadow-[0_40px_80px_rgba(0,0,0,0.45)]"><div className="relative aspect-[4/3] overflow-hidden rounded-[1.4rem]"><img src={IMAGES.hero} alt="پرتره‌ای از لیندا" className="h-full w-full object-cover" style={{ objectPosition: "center 18%" }} loading="lazy" /><div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent" /><p className="absolute right-5 bottom-5 font-serif text-xl text-ivory">لیندا</p></div></div></div>
         <div className="text-right"><SectionLabel className="mb-5">رزرو</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-6xl">فقط کافی است نوبت خود را انتخاب کنید</h2><p className="mt-6 max-w-md text-sm leading-relaxed text-ivory-2/95">خدمت، هنرمند و تاریخ را انتخاب کنید؛ باقی ماجرا پیش از رسیدن شما آماده است: نور، ابزارها و صندلی‌ای که از همین حالا نامتان را می‌داند.</p><GoldButton type="button" onClick={() => openBooking()} className="mt-10">رزرو نوبت</GoldButton></div>
@@ -171,7 +169,7 @@ export function AppointmentCta() {
 export function AboutSection() {
   const { openBooking } = useSalon();
   return (
-    <section id="about" className="scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
+    <section id="about" className="render-defer scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto grid max-w-[1440px] items-center gap-14 px-5 md:grid-cols-2 md:px-8 lg:px-12">
         <div className="relative aspect-[4/5] overflow-hidden"><img src={IMAGES.interior} alt="فضای داخلی لیندا در شب" className="h-full w-full object-cover" loading="lazy" /></div>
         <div className="max-w-lg text-right"><SectionLabel className="mb-6">درباره ما</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-5xl">درباره لیندا</h2><p className="mt-8 text-sm leading-relaxed text-ivory-2/95">یک مزون، نه یک بازار شلوغ. روز را خلوت نگه می‌داریم تا کار بزرگ‌تر باشد؛ چند سیتینگ، چند هنرمند و یک آدرس در قلب صادقیه.</p><p className="mt-5 text-sm leading-relaxed text-ivory-2/90">مو مثل یک ترکیب‌بندی کوتاه می‌شود، رنگ مثل نور نقاشی می‌شود و میکاپ معماری چهره است. عروس، تئاتری خصوصی است؛ شما همان خودتان می‌روید، فقط شفاف‌تر.</p><GoldButton type="button" onClick={() => openBooking()} className="mt-10">اطلاعات بیشتر</GoldButton></div>

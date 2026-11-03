@@ -1,76 +1,280 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CINEMATIC_SCENES,
   CINEMATIC_SERVICES,
-  CINEMATIC_VIDEO,
   IMAGES,
   JOURNEY,
   toFaDigits,
 } from "@/data/salon";
+import {
+  FILMSTRIP,
+  FILM_END_PROGRESS,
+  FILM_FALLBACK,
+  FILM_FRAME_COUNT,
+} from "@/data/filmstrip";
 import { useSalon } from "@/context/SalonContext";
 import {
   clamp,
   fadeWindow,
   rangeProgress,
+  setAttr,
+  setStyle,
   useCinematicProgress,
   useIsMobile,
   useIsTouch,
-  useVideoAllowed,
 } from "@/hooks/useMedia";
-import { useCinematicVideo } from "@/hooks/useCinematicVideo";
+import { useQuality } from "@/hooks/usePerformance";
 import { GoldButton, RevealWords, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
-const VIDEO_SRC = CINEMATIC_VIDEO;
-const VIDEO_FALLBACK_IMG = "/images/services/makeup.jpg";
 const NAILS_INDEX = 6;
-const VIDEO_DURATION = 15;
-const VIDEO_END_PROGRESS = 0.62;
+const SCENE_COUNT = 5;
 
-function progressToVideoTime(progress: number): number {
-  return clamp(progress / VIDEO_END_PROGRESS) * VIDEO_DURATION;
+/**
+ * Only the values that change a handful of times over the whole scroll track
+ * live in React state. Everything continuous (opacity, transforms, frames) is
+ * written straight to cached DOM nodes from the scroll loop — no reconciliation
+ * of this tree on any animation frame.
+ */
+interface DiscreteState {
+  sceneIndex: number;
+  svcIndex: number;
+  jourIndex: number;
+  heroText: boolean;
+  heroPara: boolean;
+  brandText: boolean;
+  brandPara: boolean;
+  finaleText: boolean;
 }
 
+const INITIAL_STATE: DiscreteState = {
+  sceneIndex: 0,
+  svcIndex: 0,
+  jourIndex: 0,
+  heroText: false,
+  heroPara: false,
+  brandText: false,
+  brandPara: false,
+  finaleText: false,
+};
+
+function sameState(a: DiscreteState, b: DiscreteState) {
+  return (
+    a.sceneIndex === b.sceneIndex &&
+    a.svcIndex === b.svcIndex &&
+    a.jourIndex === b.jourIndex &&
+    a.heroText === b.heroText &&
+    a.heroPara === b.heroPara &&
+    a.brandText === b.brandText &&
+    a.brandPara === b.brandPara &&
+    a.finaleText === b.finaleText
+  );
+}
+
+const FILM_STEPS = JOURNEY.filter((step) => step.id !== "final");
+
 export default function CinematicExperience() {
-  const { reducedMotion, openBooking, navigateTo, loaded } = useSalon();
+  const { reducedMotion, openBooking, navigateTo } = useSalon();
+  const quality = useQuality();
+  const lite = quality === "lite";
   const mobile = useIsMobile();
   const touch = useIsTouch();
-  /**
-   * Data saver, 2g/3g and reduced motion get the still-image cut of the same
-   * film: identical scenes and copy, no video bytes and no decoding cost.
-   */
-  const videoAllowed = useVideoAllowed(reducedMotion);
-  const stills = false;
+
+  const [state, setState] = useState<DiscreteState>(INITIAL_STATE);
+  const stateRef = useRef(state);
+
   const trackRef = useRef<HTMLElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const progress = useCinematicProgress(trackRef, true, reducedMotion, touch);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
+  const filmRef = useRef<HTMLDivElement | null>(null);
+  const frameARef = useRef<HTMLImageElement | null>(null);
+  const frameBRef = useRef<HTMLImageElement | null>(null);
+  const svcBarRef = useRef<HTMLDivElement | null>(null);
+  const nailsRef = useRef<HTMLImageElement | null>(null);
+  const finaleImgRef = useRef<HTMLImageElement | null>(null);
+  const finalBlockRef = useRef<HTMLDivElement | null>(null);
+  const finalClipRef = useRef<HTMLDivElement | null>(null);
+  const finalLineRef = useRef<HTMLDivElement | null>(null);
 
-  const heroOp = fadeWindow(progress, 0, 0.125, 0.04);
-  const brandOp = fadeWindow(progress, 0.115, 0.245, 0.04);
-  const servicesOp = fadeWindow(progress, 0.23, 0.625, 0.04);
-  const journeyOp = fadeWindow(progress, 0.61, 0.885, 0.04);
-  const finaleOp = fadeWindow(progress, 0.87, 1.02, 0.04);
+  const heroSceneRef = useRef<HTMLDivElement | null>(null);
+  const brandSceneRef = useRef<HTMLDivElement | null>(null);
+  const servicesSceneRef = useRef<HTMLDivElement | null>(null);
+  const journeySceneRef = useRef<HTMLDivElement | null>(null);
+  const finaleSceneRef = useRef<HTMLDivElement | null>(null);
 
-  const svcLocal = rangeProgress(progress, 0.24, 0.62);
-  const svcCount = CINEMATIC_SERVICES.length;
-  const svcFloat = svcLocal * svcCount;
-  const svcIndex = Math.min(svcCount - 1, Math.floor(svcFloat));
-  const svc = CINEMATIC_SERVICES[svcIndex];
+  const journeyImgRefs = useRef<Array<HTMLImageElement | null>>([]);
+  const journeyRefSetters = useMemo(
+    () =>
+      FILM_STEPS.map(
+        (_, i) => (el: HTMLImageElement | null) => {
+          journeyImgRefs.current[i] = el;
+        },
+      ),
+    [],
+  );
 
-  const jourLocal = rangeProgress(progress, 0.62, 0.88);
-  const jourCount = JOURNEY.length;
-  const jourFloat = jourLocal * jourCount;
-  const jourIndex = Math.min(jourCount - 1, Math.floor(jourFloat));
-  const jour = JOURNEY[jourIndex];
-  const finalLookP =
-    jourIndex === jourCount - 1
-      ? clamp((jourFloat - (jourCount - 1)) * 1.15)
-      : 0;
+  const lastFrameRef = useRef(-1);
+  const lastLiteRef = useRef(lite);
 
-  const activeScene = useMemo(() => {
-    const found = CINEMATIC_SCENES.find((s) => progress >= s.start && progress < s.end);
-    return found ?? CINEMATIC_SCENES[CINEMATIC_SCENES.length - 1];
-  }, [progress]);
+  const sceneEls = useCallback(
+    () => [
+      heroSceneRef.current,
+      brandSceneRef.current,
+      servicesSceneRef.current,
+      journeySceneRef.current,
+      finaleSceneRef.current,
+    ],
+    [],
+  );
+
+  const onFrame = useCallback(
+    (p: number) => {
+      const ops = [
+        fadeWindow(p, 0, 0.125, 0.04),
+        fadeWindow(p, 0.115, 0.245, 0.04),
+        fadeWindow(p, 0.23, 0.625, 0.04),
+        fadeWindow(p, 0.61, 0.885, 0.04),
+        fadeWindow(p, 0.87, 1.02, 0.04),
+      ];
+      const scenes = sceneEls();
+
+      for (let i = 0; i < SCENE_COUNT; i += 1) {
+        const el = scenes[i];
+        const op = ops[i];
+        setStyle(el, "opacity", op.toFixed(3));
+        setStyle(el, "visibility", op < 0.02 ? "hidden" : "visible");
+        setStyle(el, "pointer-events", op > 0.35 ? "auto" : "none");
+        setAttr(el, "aria-hidden", op < 0.2 ? "true" : "false");
+        // Filters on full-screen layers are the most expensive effect there
+        // is. Quantised to 0.5px steps on capable desktops, absent elsewhere.
+        if (lite || touch || reducedMotion) {
+          setStyle(el, "filter", "none");
+        } else {
+          const blur = op > 0.985 ? 0 : Math.round((1 - op) * 8) / 2;
+          setStyle(el, "filter", blur > 0 ? `blur(${blur}px)` : "none");
+        }
+      }
+
+      // transform instead of width: no layout on any scroll frame.
+      setStyle(progressBarRef.current, "transform", `scaleX(${p.toFixed(4)})`);
+
+      /* ---- filmstrip: two cached bitmaps, zero video decoding ---- */
+      const filmOp = 1 - clamp((p - 0.61) / 0.04);
+      setStyle(filmRef.current, "opacity", filmOp.toFixed(3));
+      setStyle(filmRef.current, "visibility", filmOp < 0.02 ? "hidden" : "visible");
+
+      const frameFloat = clamp(p / FILM_END_PROGRESS) * (FILM_FRAME_COUNT - 1);
+      const frameIndex = Math.min(FILM_FRAME_COUNT - 1, Math.floor(frameFloat));
+      const mix = clamp(frameFloat - frameIndex);
+      if (frameIndex !== lastFrameRef.current || lite !== lastLiteRef.current) {
+        setAttr(frameARef.current, "src", FILMSTRIP[frameIndex]);
+        if (!lite) {
+          setAttr(
+            frameBRef.current,
+            "src",
+            FILMSTRIP[Math.min(FILM_FRAME_COUNT - 1, frameIndex + 1)],
+          );
+        }
+        lastFrameRef.current = frameIndex;
+        lastLiteRef.current = lite;
+      }
+      // Lite swaps whole frames (no two-layer crossfade to composite).
+      setStyle(frameARef.current, "opacity", lite ? "1" : (1 - mix).toFixed(3));
+      setStyle(frameBRef.current, "opacity", lite ? "0" : mix.toFixed(3));
+
+      /* ---- services ---- */
+      const svcCount = CINEMATIC_SERVICES.length;
+      const svcFloat = rangeProgress(p, 0.24, 0.62) * svcCount;
+      const svcIndex = Math.min(svcCount - 1, Math.floor(svcFloat));
+      setStyle(svcBarRef.current, "transform", `scaleX(${(svcFloat % 1).toFixed(3)})`);
+      if (!lite) {
+        const distance = Math.abs(svcFloat - NAILS_INDEX);
+        setStyle(nailsRef.current, "opacity", clamp(1 - distance * 0.95).toFixed(3));
+        setStyle(
+          nailsRef.current,
+          "transform",
+          `scale(${(1.02 + clamp(1 - distance) * 0.04).toFixed(3)})`,
+        );
+      }
+
+      /* ---- journey ---- */
+      const jourFloat = rangeProgress(p, 0.62, 0.88) * JOURNEY.length;
+      const jourIndex = Math.min(JOURNEY.length - 1, Math.floor(jourFloat));
+      const isFinal = jourIndex === JOURNEY.length - 1;
+
+      if (!lite) {
+        for (let i = 0; i < FILM_STEPS.length; i += 1) {
+          const el = journeyImgRefs.current[i] ?? null;
+          const distance = Math.abs(jourFloat - i);
+          setStyle(el, "opacity", clamp(1 - distance * 0.9).toFixed(3));
+          setStyle(el, "transform", `scale(${(1.03 + (1 - distance) * 0.03).toFixed(3)})`);
+        }
+      } else {
+        // Snapped to the nearest step. setStyle short-circuits unchanged
+        // values, so this is four comparisons per frame and no DOM writes.
+        for (let i = 0; i < FILM_STEPS.length; i += 1) {
+          const el = journeyImgRefs.current[i] ?? null;
+          setStyle(el, "opacity", !isFinal && i === jourIndex ? "1" : "0");
+          setStyle(el, "transform", "none");
+        }
+      }
+
+      const finalVisible = isFinal && ops[3] > 0.02;
+      setStyle(finalBlockRef.current, "opacity", finalVisible ? "1" : "0");
+      setStyle(finalBlockRef.current, "visibility", finalVisible ? "visible" : "hidden");
+      const finalP = isFinal
+        ? clamp((jourFloat - (JOURNEY.length - 1)) * 1.15)
+        : 0;
+      // clip-path/left repaint; on lite they are quantised to 12 steps.
+      const reveal = lite ? Math.round(finalP * 12) / 12 : finalP;
+      setStyle(
+        finalClipRef.current,
+        "clip-path",
+        `inset(0 ${((1 - reveal) * 100).toFixed(1)}% 0 0)`,
+      );
+      setStyle(finalLineRef.current, "left", `${(reveal * 100).toFixed(1)}%`);
+
+      /* ---- finale ---- */
+      if (!lite) {
+        const ken = reducedMotion
+          ? 1
+          : 1.04 + rangeProgress(p, 0.88, 1) * (mobile ? 0.03 : 0.06);
+        setStyle(finaleImgRef.current, "transform", `scale(${ken.toFixed(3)})`);
+      } else {
+        setStyle(finaleImgRef.current, "transform", "none");
+      }
+
+      /* ---- discrete React state: at most ~20 updates for the whole track ---- */
+      let sceneIndex = CINEMATIC_SCENES.findIndex((s) => p >= s.start && p < s.end);
+      if (sceneIndex < 0) sceneIndex = CINEMATIC_SCENES.length - 1;
+      const next: DiscreteState = {
+        sceneIndex,
+        svcIndex,
+        jourIndex,
+        heroText: ops[0] > 0.45,
+        heroPara: ops[0] > 0.6,
+        brandText: ops[1] > 0.4,
+        brandPara: ops[1] > 0.55,
+        finaleText: ops[4] > 0.4,
+      };
+      if (!sameState(stateRef.current, next)) {
+        stateRef.current = next;
+        setState(next);
+      }
+    },
+    [lite, touch, reducedMotion, mobile, sceneEls],
+  );
+
+  useCinematicProgress(trackRef, {
+    enabled: true,
+    reduced: reducedMotion,
+    touch,
+    lite,
+    onFrame,
+  });
+
+  const activeScene = CINEMATIC_SCENES[state.sceneIndex];
+  const svc = CINEMATIC_SERVICES[state.svcIndex];
+  const jour = JOURNEY[state.jourIndex];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,7 +289,7 @@ export default function CinematicExperience() {
         const next = CINEMATIC_SCENES[Math.min(CINEMATIC_SCENES.length - 1, idx + 1)];
         window.scrollTo({
           top: track.offsetTop + total * (next.start + 0.02),
-          behavior: reducedMotion ? "auto" : "smooth",
+          behavior: lite || reducedMotion ? "auto" : "smooth",
         });
       }
       if (e.key === "ArrowUp" || e.key === "PageUp") {
@@ -93,42 +297,13 @@ export default function CinematicExperience() {
         const prev = CINEMATIC_SCENES[Math.max(0, idx - 1)];
         window.scrollTo({
           top: track.offsetTop + total * (prev.start + 0.02),
-          behavior: reducedMotion ? "auto" : "smooth",
+          behavior: lite || reducedMotion ? "auto" : "smooth",
         });
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeScene.id, reducedMotion]);
-
-  const videoOp = stills ? 0 : 1 - clamp((progress - 0.61) / 0.04);
-  const videoTarget = progressToVideoTime(progress);
-
-  /**
-   * Desktop scrubs the clip with the scroll. On touch devices seeking per
-   * frame is what breaks the scroll, so the clip simply plays — muted, looping
-   * and native — which is the smoothest possible "video showcase" there.
-   */
-  useCinematicVideo(videoRef, {
-    mode: "scrub",
-    targetTime: videoTarget,
-    active: videoOp > 0.02,
-    enabled: true,
-    duration: VIDEO_DURATION,
-  });
-
-  const blurAmt = (op: number) =>
-    mobile || touch || reducedMotion ? 0 : (1 - op) * 10;
-  /**
-   * `undefined` rather than `blur(0px)`: an explicit filter still promotes the
-   * whole scene to its own filtered layer, which is exactly the per-frame cost
-   * phones and tablets cannot spare.
-   */
-  const blurFilter = (op: number) => {
-    const b = blurAmt(op);
-    return b > 0.05 ? `blur(${b}px)` : undefined;
-  };
-  const ken = (local: number) => (reducedMotion ? 1 : 1.04 + local * (mobile ? 0.03 : 0.06));
+  }, [activeScene.id, reducedMotion, lite]);
 
   const goScene = (start: number) => {
     const track = trackRef.current;
@@ -136,7 +311,7 @@ export default function CinematicExperience() {
     const total = track.offsetHeight - window.innerHeight;
     window.scrollTo({
       top: track.offsetTop + total * (start + 0.01),
-      behavior: reducedMotion ? "auto" : "smooth",
+      behavior: lite || reducedMotion ? "auto" : "smooth",
     });
   };
 
@@ -153,75 +328,51 @@ export default function CinematicExperience() {
       >
         <div className="pointer-events-none absolute top-0 left-0 z-30 h-[2px] w-full bg-white/5">
           <div
-            className="h-full bg-champagne"
-            style={{ width: `${progress * 100}%` }}
+            ref={progressBarRef}
+            className="progress-fill h-full w-full origin-left bg-champagne"
           />
         </div>
 
-        {!stills && (
-          <video
-            ref={videoRef}
-            src={VIDEO_SRC}
-            poster={VIDEO_FALLBACK_IMG}
-            className="pointer-events-none absolute inset-0 h-full w-full transform-gpu object-cover"
-            style={{
-              opacity: videoOp,
-              visibility: videoOp < 0.02 ? "hidden" : "visible",
+        {/* Pre-decoded film frames: no <video>, no seeks, no decoder at runtime. */}
+        <div
+          ref={filmRef}
+          className="film-layer pointer-events-none absolute inset-0"
+          aria-hidden="true"
+        >
+          <img
+            ref={frameARef}
+            src={FILMSTRIP[0]}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = FILM_FALLBACK;
             }}
-            muted
-            playsInline
-            disablePictureInPicture
-            preload="auto"
-            aria-hidden="true"
           />
-        )}
-        {!stills && (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-ink/25" />
-            <div className="absolute inset-0 bg-gradient-to-l from-ink/70 via-ink/15 to-ink/45" />
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ink/80 to-transparent" />
-          </div>
-        )}
+          <img
+            ref={frameBRef}
+            src={FILMSTRIP[1]}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-0"
+            onError={(e) => {
+              e.currentTarget.src = FILM_FALLBACK;
+            }}
+          />
+        </div>
+        {/* One layer instead of three stacked full-screen gradients. */}
+        <div className="film-overlay pointer-events-none absolute inset-0" />
 
         {/* SCENE 01 — HERO */}
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: heroOp,
-            visibility: heroOp < 0.02 ? "hidden" : "visible",
-            pointerEvents: heroOp > 0.35 ? "auto" : "none",
-            filter: blurFilter(heroOp),
-          }}
-          aria-hidden={heroOp < 0.2}
-        >
-          {stills && (
-            <img
-              src={IMAGES.hero}
-              alt="پرتره ادیتوریال از مهمان لیندا"
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{
-                objectPosition: "center 18%",
-                transform: `scale(${ken(rangeProgress(progress, 0, 0.12))})`,
-              }}
-              fetchPriority="high"
-            />
-          )}
-          {stills && (
-            <>
-              <div className="absolute inset-0 bg-gradient-to-l from-ink/80 via-ink/35 to-transparent" />
-              <div className="vignette absolute inset-0" />
-            </>
-          )}
+        <div ref={heroSceneRef} className="scene-layer absolute inset-0">
           <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:justify-center md:px-16 md:pb-24 lg:px-24 lg:pb-0">
             <SectionLabel className="mb-6">آرامش زیبایی تهران</SectionLabel>
             <h1 className="max-w-[12ch] font-serif text-[2.6rem] leading-[1.12] font-light text-ivory sm:text-6xl md:text-7xl lg:text-8xl">
-              <RevealWords text="زیبایی، از نو تعریف می‌شود." active={heroOp > 0.45} />
+              <RevealWords text="زیبایی، از نو تعریف می‌شود." active={state.heroText} />
             </h1>
             <p
               className="mt-8 max-w-md text-sm leading-relaxed text-ivory-2/95 md:text-base"
               style={{
-                opacity: heroOp > 0.6 ? 1 : 0,
-                transform: heroOp > 0.6 ? "translateY(0)" : "translateY(16px)",
+                opacity: state.heroPara ? 1 : 0,
+                transform: state.heroPara ? "translateY(0)" : "translateY(16px)",
                 transition: "opacity 0.8s ease, transform 0.8s ease",
               }}
             >
@@ -233,49 +384,26 @@ export default function CinematicExperience() {
             <span className="text-[15px] tracking-[0.4em] text-ivory/80 uppercase">
               اسکرول کنید
             </span>
-            <span className="h-10 w-px origin-top bg-champagne/80" style={{ animation: "scroll-hint 2.2s ease-in-out infinite" }} />
+            <span className="h-10 w-px origin-top bg-champagne/80 scroll-hint-line" />
           </div>
         </div>
 
         {/* SCENE 02 — BRAND */}
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: brandOp,
-            visibility: brandOp < 0.02 ? "hidden" : "visible",
-            pointerEvents: brandOp > 0.35 ? "auto" : "none",
-            filter: blurFilter(brandOp),
-          }}
-          aria-hidden={brandOp < 0.2}
-        >
-          {stills && (
-            <img
-              src={IMAGES.brandModel}
-              alt="مدل لیندا در نور آتلیه"
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{
-                objectPosition: "center 12%",
-                transform: `scale(${ken(rangeProgress(progress, 0.12, 0.24))})`,
-              }}
-            />
-          )}
-          {stills && (
-            <div className="absolute inset-0 bg-ink/55 md:bg-gradient-to-l md:from-ink/85 md:via-ink/45 md:to-ink/20" />
-          )}
+        <div ref={brandSceneRef} className="scene-layer absolute inset-0">
           <div className="relative z-10 flex h-full items-end px-5 pt-20 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:items-center md:px-16 md:pb-20 lg:px-24">
             <div className="max-w-xl">
               <SectionLabel className="mb-6">مزون</SectionLabel>
               <h2 className="font-serif text-[2.1rem] leading-[1.12] font-light text-ivory sm:text-5xl lg:text-6xl">
                 <RevealWords
                   text="جایی که زیبایی به یک تجربه تبدیل می‌شود"
-                  active={brandOp > 0.4}
+                  active={state.brandText}
                 />
               </h2>
               <p
                 className="mt-8 max-w-md text-sm leading-relaxed text-ivory-2 md:text-[15px]"
                 style={{
-                  opacity: brandOp > 0.55 ? 1 : 0,
-                  transform: brandOp > 0.55 ? "none" : "translateY(14px)",
+                  opacity: state.brandPara ? 1 : 0,
+                  transform: state.brandPara ? "none" : "translateY(14px)",
                   transition: "opacity 0.8s ease, transform 0.8s ease",
                 }}
               >
@@ -288,53 +416,17 @@ export default function CinematicExperience() {
         </div>
 
         {/* SCENE 03 — SERVICES */}
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: servicesOp,
-            visibility: servicesOp < 0.02 ? "hidden" : "visible",
-            pointerEvents: servicesOp > 0.35 ? "auto" : "none",
-            filter: blurFilter(servicesOp),
-          }}
-          aria-hidden={servicesOp < 0.2}
-        >
-          {stills
-            ? CINEMATIC_SERVICES.map((item, i) => {
-                const dist = Math.abs(svcFloat - i);
-                const op = clamp(1 - dist * 0.95);
-                return (
-                  <img
-                    key={item.id}
-                    src={item.image}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                    style={{
-                      objectPosition: item.objectPosition,
-                      opacity: op,
-                      transform: `scale(${1.02 + (1 - dist) * 0.04})`,
-                    }}
-                  />
-                );
-              })
-            : (
-              <img
-                src={IMAGES.nails}
-                alt="آرت ناخن در نور آتلیه"
-                className="absolute inset-0 h-full w-full object-cover"
-                style={{
-                  opacity: clamp(1 - Math.abs(svcFloat - NAILS_INDEX) * 0.95),
-                  transform: `scale(${1.02 + clamp(1 - Math.abs(svcFloat - NAILS_INDEX)) * 0.04})`,
-                  transition: "opacity 0.6s ease",
-                }}
-              />
-            )}
-          {stills && (
-            <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/35 to-ink/25" />
-          )}
+        <div ref={servicesSceneRef} className="scene-layer absolute inset-0">
+          <img
+            ref={nailsRef}
+            src={IMAGES.nails}
+            alt="آرت ناخن در نور آتلیه"
+            className="cinematic-accent absolute inset-0 h-full w-full object-cover"
+          />
           <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-20 lg:px-24">
             <SectionLabel className="mb-4">آتلیه</SectionLabel>
             <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
-              {svc.index} / {toFaDigits(svcCount).padStart(2, "۰")}
+              {svc.index} / {toFaDigits(CINEMATIC_SERVICES.length).padStart(2, "۰")}
             </p>
             <h2 className="font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-8xl">
               {svc.name}
@@ -347,48 +439,27 @@ export default function CinematicExperience() {
             </p>
             <div className="mt-8 h-px w-full max-w-xs bg-white/10">
               <div
-                className="h-px bg-champagne"
-                style={{ width: `${((svcFloat % 1) * 100).toFixed(1)}%` }}
+                ref={svcBarRef}
+                className="progress-fill h-px w-full origin-left bg-champagne"
               />
             </div>
           </div>
         </div>
 
         {/* SCENE 04 — JOURNEY */}
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: journeyOp,
-            visibility: journeyOp < 0.02 ? "hidden" : "visible",
-            pointerEvents: journeyOp > 0.35 ? "auto" : "none",
-            filter: blurFilter(journeyOp),
-          }}
-          aria-hidden={journeyOp < 0.2}
-        >
-          {JOURNEY.map((step, i) => {
-            const dist = Math.abs(jourFloat - i);
-            const op = clamp(1 - dist * 0.9);
-            if (step.id === "final") return null;
-            return (
-              <img
-                key={step.id}
-                src={step.image}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-                style={{
-                  opacity: op,
-                  objectPosition: "center center",
-                  transform: `scale(${1.03 + (1 - dist) * 0.03})`,
-                }}
-              />
-            );
-          })}
+        <div ref={journeySceneRef} className="scene-layer absolute inset-0">
+          {FILM_STEPS.map((step, i) => (
+            <img
+              key={step.id}
+              ref={journeyRefSetters[i]}
+              src={step.image}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ))}
 
           {/* Final look before / after */}
-          <div
-            className="absolute inset-0"
-            style={{ opacity: jour.id === "final" ? 1 : 0 }}
-          >
+          <div ref={finalBlockRef} className="final-block absolute inset-0">
             <img
               src={IMAGES.hair}
               alt="پیش از سیتینگ"
@@ -396,10 +467,8 @@ export default function CinematicExperience() {
               style={{ objectPosition: "center 20%" }}
             />
             <div
-              className="absolute inset-0 overflow-hidden"
-              style={{
-                clipPath: `inset(0 ${100 - finalLookP * 100}% 0 0)`,
-              }}
+              ref={finalClipRef}
+              className="final-clip absolute inset-0 overflow-hidden"
             >
               <img
                 src={IMAGES.hero}
@@ -409,13 +478,13 @@ export default function CinematicExperience() {
               />
             </div>
             <div
-              className="absolute top-0 bottom-0 w-px bg-champagne"
-              style={{ left: `${finalLookP * 100}%` }}
+              ref={finalLineRef}
+              className="absolute top-0 bottom-0 left-0 w-px bg-champagne"
             />
             <span className="absolute bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] left-5 text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:bottom-28 md:left-16">
               پیش از سیتینگ
             </span>
-            <span className="absolute right-5 bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:right-16 md:bottom-28">
+            <span className="absolute right-5 bottom-[calc(12rem+env(safe-area-inset-bottom,0px))] text-[13px] tracking-[0.3em] text-ivory/90 uppercase sm:text-[16px] md:bottom-28 md:right-16">
               پس از سیتینگ
             </span>
           </div>
@@ -441,7 +510,7 @@ export default function CinematicExperience() {
                   key={s.id}
                   className={cn(
                     "h-px w-8 transition-colors duration-500",
-                    i <= jourIndex ? "bg-champagne" : "bg-white/15",
+                    i <= state.jourIndex ? "bg-champagne" : "bg-white/15",
                   )}
                 />
               ))}
@@ -450,30 +519,18 @@ export default function CinematicExperience() {
         </div>
 
         {/* SCENE 05 — FINALE */}
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: finaleOp,
-            visibility: finaleOp < 0.02 ? "hidden" : "visible",
-            pointerEvents: finaleOp > 0.35 ? "auto" : "none",
-            filter: blurFilter(finaleOp),
-          }}
-          aria-hidden={finaleOp < 0.2}
-        >
+        <div ref={finaleSceneRef} className="scene-layer absolute inset-0">
           <img
+            ref={finaleImgRef}
             src={IMAGES.chair}
             alt="صندلی خالی آرایش در انتظار شما در آتلیه"
             className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              objectPosition: "center center",
-              transform: `scale(${ken(rangeProgress(progress, 0.88, 1))})`,
-            }}
           />
           <div className="absolute inset-0 bg-ink/60" />
           <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 text-center md:pb-0">
             <SectionLabel className="mb-6">دعوت</SectionLabel>
             <h2 className="max-w-[14ch] font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
-              <RevealWords text="صندلی شما منتظر است." active={finaleOp > 0.4} />
+              <RevealWords text="صندلی شما منتظر است." active={state.finaleText} />
             </h2>
             <p className="mt-6 max-w-md text-sm leading-relaxed text-ivory-2/95">
               هر روز فقط چند سیتینگ محدود؛ یک ساعت خصوصی در مزون برای خودتان رزرو کنید.

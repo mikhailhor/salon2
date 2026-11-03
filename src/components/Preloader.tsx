@@ -1,7 +1,32 @@
 import { useEffect, useState } from "react";
-import { ALL_IMAGES, BRAND, CINEMATIC_VIDEO } from "@/data/salon";
+import { ALL_IMAGES, BRAND, IMAGES } from "@/data/salon";
+import { FILMSTRIP, LOGO_SRC } from "@/data/filmstrip";
 import { Mark } from "@/components/primitives";
 import { useSalon } from "@/context/SalonContext";
+import { getQuality } from "@/hooks/usePerformance";
+import { mapLimit, preloadImage, wait } from "@/utils/assetCache";
+
+/**
+ * A deliberate warm-up phase.
+ *
+ * The site pays its cost here, while the visitor is looking at a static
+ * curtain, instead of during the first scroll: every image is fetched, the
+ * small filmstrip frames are decoded into the browser's image cache, and the
+ * webfonts are settled. Nothing on the cinematic track decodes, seeks or
+ * reflows later. Loading may take a few seconds longer on a slow connection —
+ * that is the trade the experience asks for in exchange for a smooth scroll.
+ *
+ * Concurrency is bounded (weak CPUs choke on 40 parallel decodes), every
+ * fetch has a deadline, and the whole phase has a hard deadline, so a broken
+ * asset can never trap anyone behind this screen.
+ */
+const CRITICAL = [LOGO_SRC, IMAGES.hero, FILMSTRIP[0], FILMSTRIP[1]];
+const CRITICAL_SET = new Set(CRITICAL);
+const REST = [...new Set([...ALL_IMAGES, ...FILMSTRIP])].filter(
+  (src) => !CRITICAL_SET.has(src),
+);
+const DECODE_SET = new Set(FILMSTRIP);
+const TOTAL = CRITICAL.length + REST.length + 1; // +1 for fonts
 
 export default function Preloader() {
   const { setLoaded, reducedMotion } = useSalon();
@@ -12,67 +37,62 @@ export default function Preloader() {
   useEffect(() => {
     let mounted = true;
     const started = performance.now();
-    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const lite = getQuality() === "lite";
+    let done = 0;
+    let finished = false;
 
-    const totalAssets = ALL_IMAGES.length + 1; // images + cinematic video
+    const bump = () => {
+      done += 1;
+      if (mounted && !finished) setProgress(Math.min(1, done / TOTAL));
+    };
 
     const load = async () => {
-      let done = 0;
-
-      const increment = () => {
-        done += 1;
-        if (mounted) setProgress(done / totalAssets);
-      };
-
-      const imagePromises = ALL_IMAGES.map(
-        (src) =>
-          new Promise<void>((resolve) => {
-            const img = new Image();
-            const settle = () => {
-              increment();
-              resolve();
-            };
-            img.onload = settle;
-            img.onerror = settle;
-            img.src = src;
+      // 1. First paint assets, fully decoded.
+      await Promise.race([
+        Promise.all(
+          CRITICAL.map(async (src) => {
+            await preloadImage(src, true);
+            bump();
           }),
+        ),
+        wait(8000),
+      ]);
+
+      // 2. Fonts settle before the scroll metrics are measured.
+      try {
+        await Promise.race([document.fonts?.ready ?? Promise.resolve(), wait(4000)]);
+      } catch {
+        /* fonts API unavailable */
+      }
+      bump();
+
+      // 3. Everything else, in small batches. Frames are decoded; the big
+      //    photographs are only fetched (decoding them all at once would hold
+      //    ~100 MB of bitmaps in memory on a low-end device).
+      await Promise.race([
+        mapLimit(REST, lite ? 2 : 4, async (src) => {
+          await preloadImage(src, DECODE_SET.has(src));
+          bump();
+        }),
+        wait(14000),
+      ]);
+      if (!mounted) return;
+
+      // 4. Two idle frames so layout and GC are done before the first drag.
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
-
-      // Ensure video is buffered so scrubbing on scroll is available immediately
-      const videoPromise = new Promise<void>((resolve) => {
-        const video = document.createElement("video");
-        video.preload = "auto";
-        video.muted = true;
-        const settle = () => {
-          video.removeEventListener("canplaythrough", settle);
-          video.removeEventListener("canplay", settle);
-          video.removeEventListener("loadeddata", settle);
-          video.removeEventListener("error", settle);
-          increment();
-          resolve();
-        };
-
-        video.addEventListener("canplaythrough", settle, { once: true });
-        video.addEventListener("canplay", settle, { once: true });
-        video.addEventListener("loadeddata", settle, { once: true });
-        video.addEventListener("error", settle, { once: true });
-        video.src = CINEMATIC_VIDEO;
-        video.load();
-      });
-
-      await Promise.all([...imagePromises, videoPromise]);
+      const minimum = reducedMotion ? 200 : 900;
+      await wait(Math.max(0, minimum - (performance.now() - started)));
       if (!mounted) return;
-      setProgress(1);
 
-      const min = reducedMotion ? 200 : 1200;
-      await wait(Math.max(0, min - (performance.now() - started)));
-      if (!mounted) return;
+      finished = true;
       setProgress(1);
       setLeaving(true);
       setLoaded(true);
       window.setTimeout(() => {
         if (mounted) setGone(true);
-      }, reducedMotion ? 80 : 700);
+      }, lite ? 350 : 700);
     };
 
     void load();
