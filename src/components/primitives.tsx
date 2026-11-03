@@ -1,5 +1,6 @@
 import { cn } from "@/utils/cn";
 import { usePrefersReducedMotion } from "@/hooks/useMedia";
+import { LOGO_SRC } from "@/data/filmstrip";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export function Mark({ className }: { className?: string }) {
@@ -42,7 +43,7 @@ export function Logo({
     >
       <span className="relative flex items-center justify-center">
         <img
-          src="/logo.webp"
+          src={LOGO_SRC}
           alt="لیندا"
           className={cn(
             "logo-neon-img relative h-16 w-auto object-contain",

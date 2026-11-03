@@ -11,6 +11,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Start the first-paint assets before the JS bundle is even parsed. -->
+    <link rel="preload" as="image" href="./logo.webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="./film/f-01.jpg" />
+    <link rel="preload" as="image" href="./images/hero/hero-01.jpg" />
     <meta
       name="description"
       content="مرکز زیبایی لیندا جعفرپناه؛ آتلیه‌ای خصوصی برای مو، رنگ، میکاپ، عروس و مراقبت پوست در تهران، صادقیه."

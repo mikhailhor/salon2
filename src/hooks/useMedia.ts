@@ -1,10 +1,11 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import type { Quality } from "@/hooks/usePerformance";
 
 /* ------------------------------------------------------------------ *
  * Media queries
  * All hooks read their value synchronously on the first render, so the
- * layout never paints in the wrong (cinematic) state for a frame — that
- * flash is what used to trigger a full re-mount right after load.
+ * layout never paints in the wrong state for a frame — that flash is what
+ * used to trigger a full re-mount right after load.
  * ------------------------------------------------------------------ */
 
 export function queryMatches(query: string) {
@@ -38,59 +39,35 @@ export function useIsMobile(bp = 1024) {
   return useMediaQuery(`(max-width: ${bp - 1}px)`);
 }
 
-/** Tablet-ish range: wider than a phone, narrower than a laptop. */
-export function useIsTablet() {
-  return useMediaQuery("(min-width: 640px) and (max-width: 1023px)");
-}
-
-/**
- * Can this viewport host the pinned cinematic track?
- *
- * It now runs on phones and tablets too — the only hard stop is a viewport
- * that is too short for a full-screen scene to read at all (a phone held in
- * landscape, a split-screen window), where the natively scrolling page is a
- * better experience.
- */
-export function useCinematicCapable() {
-  return true;
-}
-
 /** Touch input is available (phones, tablets, touch laptops, touch screens). */
 export function useIsTouch() {
   return useMediaQuery("(hover: none), (pointer: coarse)");
 }
 
-/** Data saver or a 2g/3g radio: skip eager media, keep the page light. */
-export function prefersLightData() {
-  return false;
-}
-
 /**
- * Cinematic video is always enabled across all devices and connection types.
+ * Every viewport gets the cinematic cut; the expensive effects inside it are
+ * what get switched off on weak hardware, not the experience itself.
  */
-export function useVideoAllowed(_reducedMotion: boolean) {
+export function useCinematicCapable() {
   return true;
 }
 
-interface NetworkInformation {
-  saveData?: boolean;
-  effectiveType?: string;
-  addEventListener?: (type: string, listener: () => void) => void;
-  removeEventListener?: (type: string, listener: () => void) => void;
+type NavigatorHints = Navigator & {
+  deviceMemory?: number;
+  connection?: { saveData?: boolean; effectiveType?: string };
+};
+
+export function prefersLightData() {
+  if (typeof navigator === "undefined") return false;
+  const conn = (navigator as NavigatorHints).connection;
+  if (!conn) return false;
+  if (conn.saveData) return true;
+  return Boolean(conn.effectiveType && ["slow-2g", "2g", "3g"].includes(conn.effectiveType));
 }
 
-function getConnection(): NetworkInformation | undefined {
-  if (typeof navigator === "undefined") return undefined;
-  return (navigator as Navigator & { connection?: NetworkInformation }).connection;
-}
-
-function canPlayVideo() {
-  if (typeof navigator === "undefined") return true;
-  const conn = getConnection();
-  if (!conn) return true;
-  if (conn.saveData) return false;
-  const slow = ["slow-2g", "2g", "3g"];
-  return !conn.effectiveType || !slow.includes(conn.effectiveType);
+/** Native (non-scrubbed) video is only worth its decoder on the full tier. */
+export function useVideoAllowed(reducedMotion: boolean, quality: Quality) {
+  return !reducedMotion && quality === "full" && !prefersLightData();
 }
 
 /* ------------------------------------------------------------------ *
@@ -112,25 +89,61 @@ export function fadeWindow(p: number, start: number, end: number, fade = 0.034) 
   return Math.min(enter, exit);
 }
 
-/* ------------------------------------------------------------------ *
- * Scroll progress for the pinned cinematic track
- *
- * Two things keep this cheap enough to stay smooth while a finger is
- * dragging the page:
- *   1. layout metrics are cached (reading `offsetHeight` /
- *      `getBoundingClientRect()` inside the rAF loop forced a reflow on
- *      every single frame);
- *   2. the loop follows a passive `scroll` listener and stops itself as
- *      soon as the eased value has caught up, instead of running forever.
- * ------------------------------------------------------------------ */
+/** Cheap, cached DOM writes: never touch style for a value already applied. */
+const styleCache = new WeakMap<HTMLElement, Record<string, string>>();
 
+export function setStyle(element: HTMLElement | null, prop: string, value: string) {
+  if (!element) return;
+  let last = styleCache.get(element);
+  if (!last) {
+    last = {};
+    styleCache.set(element, last);
+  }
+  if (last[prop] === value) return;
+  last[prop] = value;
+  element.style.setProperty(prop, value);
+}
+
+export function setAttr(element: HTMLElement | null, name: string, value: string) {
+  if (!element) return;
+  const key = `attr:${name}`;
+  let last = styleCache.get(element);
+  if (!last) {
+    last = {};
+    styleCache.set(element, last);
+  }
+  if (last[key] === value) return;
+  last[key] = value;
+  element.setAttribute(name, value);
+}
+
+interface ProgressOptions {
+  enabled: boolean;
+  reduced: boolean;
+  touch: boolean;
+  lite: boolean;
+  /** Called at most `maxFps` times per second with the eased scroll progress. */
+  onFrame: (progress: number) => void;
+}
+
+/**
+ * Scroll progress for the pinned cinematic track — DOM-driven.
+ *
+ * The old version put progress in React state, so every animation frame
+ * re-rendered the whole 5-scene tree (dozens of full-screen layers, images,
+ * gradients and text). That reconciliation was the main source of stutter on
+ * slow CPUs. Here the loop writes styles straight to cached DOM nodes and only
+ * notifies React about discrete changes (which scene / service / step is on).
+ *
+ * Layout metrics are cached; the loop follows a passive scroll listener and
+ * stops itself as soon as the eased value settles.
+ */
 export function useCinematicProgress(
   trackRef: RefObject<HTMLElement | null>,
-  enabled: boolean,
-  reduced: boolean,
-  touch: boolean,
+  { enabled, reduced, touch, lite, onFrame }: ProgressOptions,
 ) {
-  const [progress, setProgress] = useState(0);
+  const frameRef = useRef(onFrame);
+  frameRef.current = onFrame;
 
   useEffect(() => {
     if (!enabled) return;
@@ -157,37 +170,38 @@ export function useCinematicProgress(
 
     const readTarget = () => clamp((window.scrollY - top) / span);
 
-    // Touch needs to track the finger closely; a slower ease is what makes
-    // the desktop version feel cinematic.
-    const ease = reduced ? 1 : touch ? 0.34 : 0.09;
-    // Committing at ~32fps on touch halves the React work per scroll frame.
-    const minFrameMs = touch && !reduced ? 1000 / 32 : 0;
+    // Lite snaps to the finger: no easing loop means no catch-up frames after
+    // the drag has ended and no work while the page is at rest.
+    const ease = lite || reduced ? 1 : touch ? 0.34 : 0.12;
+    const minFrameMs = lite ? 1000 / 30 : touch ? 1000 / 45 : 0;
 
     const tick = (now: number) => {
       raf = 0;
-      if (!alive) return;
+      if (!alive || !inView) return;
 
       current += (target - current) * ease;
-      if (Math.abs(target - current) < 0.0006) current = target;
+      if (Math.abs(target - current) < 0.0005) current = target;
+      const settled = current === target;
 
+      // Always commit the final value, even if the frame budget skipped it.
       if (
         current !== committed &&
-        (minFrameMs === 0 || lastCommit < 0 || now - lastCommit >= minFrameMs)
+        (settled || lastCommit < 0 || now - lastCommit >= minFrameMs)
       ) {
         committed = current;
         lastCommit = now;
-        setProgress(current);
+        frameRef.current(current);
       }
 
-      if (current !== target) raf = requestAnimationFrame(tick);
+      if (!settled) raf = requestAnimationFrame(tick);
     };
 
     const kick = () => {
-      if (!raf && alive) raf = requestAnimationFrame(tick);
+      if (!raf && alive && inView) raf = requestAnimationFrame(tick);
     };
 
     const onScroll = () => {
-      if (!inView) return; // nothing on screen to update
+      if (!inView || document.hidden) return;
       target = readTarget();
       kick();
     };
@@ -197,30 +211,32 @@ export function useCinematicProgress(
       onScroll();
     };
 
-    // First read: jump straight to the current position instead of
-    // animating from zero (e.g. after toggling cinematic mode).
+    // Coalesce mobile URL-bar viewport changes into one measurement per frame.
+    let measureRaf = 0;
+    const scheduleMeasure = () => {
+      if (measureRaf) return;
+      measureRaf = requestAnimationFrame(() => {
+        measureRaf = 0;
+        if (alive) onResize();
+      });
+    };
+
     measure();
     current = target = readTarget();
-    committed = -1;
-    setProgress(current);
-    raf = requestAnimationFrame(tick);
+    committed = current;
+    frameRef.current(current);
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("orientationchange", onResize, { passive: true });
+    window.addEventListener("resize", scheduleMeasure, { passive: true });
+    window.addEventListener("orientationchange", scheduleMeasure, { passive: true });
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", scheduleMeasure);
 
     const ro =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => {
-            measure();
-            onScroll();
-          })
+        ? new ResizeObserver(scheduleMeasure)
         : null;
     ro?.observe(el);
-
-    // The mobile URL bar changes the viewport height while scrolling.
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", onResize);
 
     const io =
       typeof IntersectionObserver !== "undefined"
@@ -230,6 +246,9 @@ export function useCinematicProgress(
               if (inView) {
                 onResize();
                 kick();
+              } else if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
               }
             },
             { threshold: 0 },
@@ -244,30 +263,33 @@ export function useCinematicProgress(
     return () => {
       alive = false;
       if (raf) cancelAnimationFrame(raf);
+      if (measureRaf) cancelAnimationFrame(measureRaf);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-      vv?.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", scheduleMeasure);
+      window.removeEventListener("orientationchange", scheduleMeasure);
+      vv?.removeEventListener("resize", scheduleMeasure);
       ro?.disconnect();
       io?.disconnect();
-      inView = false;
     };
-  }, [enabled, reduced, touch, trackRef]);
-
-  return progress;
+  }, [enabled, reduced, touch, lite, trackRef]);
 }
 
-/**
- * Passive, rAF-throttled "has the page been scrolled" flag.
- */
+/** Passive, rAF-throttled "has the page been scrolled" flag (one re-render). */
 export function useScrolled(threshold = 24) {
-  const [scrolled, setScrolled] = useState(false);
+  const [scrolled, setScrolled] = useState(() =>
+    typeof window === "undefined" ? false : window.scrollY > threshold,
+  );
 
   useEffect(() => {
     let raf = 0;
+    let last = scrolled;
     const read = () => {
       raf = 0;
-      setScrolled(window.scrollY > threshold);
+      const next = window.scrollY > threshold;
+      if (next !== last) {
+        last = next;
+        setScrolled(next);
+      }
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(read);
@@ -278,6 +300,7 @@ export function useScrolled(threshold = 24) {
       if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threshold]);
 
   return scrolled;

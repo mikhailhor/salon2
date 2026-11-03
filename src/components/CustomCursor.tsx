@@ -1,61 +1,85 @@
 import { useEffect, useRef } from "react";
-import { useIsTouch } from "@/hooks/useMedia";
+import { useIsTouch, usePrefersReducedMotion } from "@/hooks/useMedia";
+import { useQuality } from "@/hooks/usePerformance";
 
+/**
+ * The old cursor ran a 60 fps rAF loop for the entire lifetime of the page,
+ * even when the pointer was motionless (and it used a full-screen blend-mode
+ * layer). It now runs only while the ring is actually catching up, and is not
+ * mounted at all on touch, reduced-motion or low-power devices.
+ */
 export default function CustomCursor() {
   const touch = useIsTouch();
+  const reduced = usePrefersReducedMotion();
+  const quality = useQuality();
+  const enabled = !touch && !reduced && quality === "full";
+
   const wrapRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const pos = useRef({ x: 0, y: 0, rx: 0, ry: 0 });
-  const state = useRef({ hover: false, hidden: true });
 
   useEffect(() => {
-    if (touch) return;
-
+    if (!enabled) return;
     const html = document.documentElement;
-    html.classList.add("is-cursor-hidden");
-
-    let raf = 0;
     const wrap = wrapRef.current;
     const ring = ringRef.current;
     if (!wrap || !ring) return;
 
+    html.classList.add("is-cursor-hidden");
+    const pos = { x: 0, y: 0, rx: 0, ry: 0 };
+    let hover = false;
+    let scale = 1;
+    let raf = 0;
+    let alive = true;
+
     const tick = () => {
-      pos.current.rx += (pos.current.x - pos.current.rx) * 0.18;
-      pos.current.ry += (pos.current.y - pos.current.ry) * 0.18;
-      wrap.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
-      ring.style.transform = `translate3d(${pos.current.rx - pos.current.x}px, ${
-        pos.current.ry - pos.current.y
-      }px, 0) scale(${state.current.hover ? 1.85 : 1})`;
-      raf = requestAnimationFrame(tick);
+      raf = 0;
+      if (!alive) return;
+      const dx = pos.x - pos.rx;
+      const dy = pos.y - pos.ry;
+      pos.rx += dx * 0.18;
+      pos.ry += dy * 0.18;
+      const target = hover ? 1.85 : 1;
+      scale += (target - scale) * 0.18;
+
+      wrap.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0)`;
+      ring.style.transform =
+        `translate3d(${(pos.rx - pos.x).toFixed(2)}px, ${(pos.ry - pos.y).toFixed(2)}px, 0) scale(${scale.toFixed(3)})`;
+
+      if (
+        Math.abs(dx) > 0.15 ||
+        Math.abs(dy) > 0.15 ||
+        Math.abs(target - scale) > 0.01
+      ) {
+        raf = requestAnimationFrame(tick);
+      }
     };
-    raf = requestAnimationFrame(tick);
+
+    const kick = () => {
+      if (!raf && alive) raf = requestAnimationFrame(tick);
+    };
 
     const onMove = (e: MouseEvent) => {
-      pos.current.x = e.clientX;
-      pos.current.y = e.clientY;
-      if (state.current.hidden) {
-        state.current.hidden = false;
-        wrap.style.opacity = "1";
-      }
+      pos.x = e.clientX;
+      pos.y = e.clientY;
+      wrap.style.opacity = "1";
+      kick();
     };
 
     const onOver = (e: MouseEvent) => {
-      const t = (e.target as HTMLElement | null)?.closest?.("[data-cursor]") as
-        | HTMLElement
-        | null;
-      const tag = (e.target as HTMLElement | null)?.tagName;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
         wrap.style.opacity = "0";
-        state.current.hover = false;
-        return;
+        hover = false;
+      } else {
+        wrap.style.opacity = "1";
+        hover = Boolean(target?.closest?.("[data-cursor]"));
       }
-      wrap.style.opacity = "1";
-      state.current.hover = Boolean(t);
+      kick();
     };
 
     const onLeave = () => {
       wrap.style.opacity = "0";
-      state.current.hidden = true;
     };
 
     window.addEventListener("mousemove", onMove, { passive: true });
@@ -63,15 +87,16 @@ export default function CustomCursor() {
     document.addEventListener("mouseleave", onLeave);
 
     return () => {
+      alive = false;
       html.classList.remove("is-cursor-hidden");
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseover", onOver);
       document.removeEventListener("mouseleave", onLeave);
     };
-  }, [touch]);
+  }, [enabled]);
 
-  if (touch) return null;
+  if (!enabled) return null;
 
   return (
     <div
@@ -84,7 +109,7 @@ export default function CustomCursor() {
         <div className="h-1.5 w-1.5 rounded-full bg-ivory" />
         <div
           ref={ringRef}
-          className="absolute top-1/2 left-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ivory/80 transition-[border-color] duration-300"
+          className="cursor-ring absolute top-1/2 left-1/2 h-10 w-10 rounded-full border border-ivory/80"
         />
       </div>
     </div>

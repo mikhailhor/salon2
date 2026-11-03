@@ -111,8 +111,8 @@ export default function Header() {
 
       <div
         className={cn(
-          "fixed inset-0 z-30 flex flex-col justify-end bg-ink/96 backdrop-blur-md transition-opacity duration-500 lg:hidden",
-          menu ? "opacity-100" : "pointer-events-none opacity-0",
+          "fixed inset-0 z-30 flex flex-col justify-end bg-ink/96 transition-opacity duration-500 lg:hidden",
+          menu ? "opacity-100 backdrop-blur-md" : "pointer-events-none opacity-0",
         )}
         aria-hidden={!menu}
       >

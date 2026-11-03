@@ -177,15 +177,25 @@ html.is-cursor-hidden select {
   background: linear-gradient(90deg, transparent, #c6a56a, transparent);
 }
 
-/* Neon glow hugging the crest itself: layered gold drop-shadows follow the
-   artwork's silhouette — no ring/circle around it — breathing like neon. */
+/* A quieter gold halo hugging the crest itself: three soft, dim shadows
+   instead of four bright ones reaching 68px, and the breathing is an opacity
+   change (compositor-only) rather than re-rasterising filters every frame. */
 .logo-neon-img {
   filter:
-    drop-shadow(0 0 3px rgba(255, 233, 175, 0.8))
-    drop-shadow(0 0 10px rgba(235, 199, 112, 0.5))
-    drop-shadow(0 0 26px rgba(216, 168, 76, 0.38))
-    drop-shadow(0 0 54px rgba(198, 165, 106, 0.26));
-  animation: logo-neon-pulse 4.6s ease-in-out infinite;
+    drop-shadow(0 0 2px rgba(255, 233, 175, 0.55))
+    drop-shadow(0 0 9px rgba(235, 199, 112, 0.34))
+    drop-shadow(0 0 22px rgba(216, 168, 76, 0.2));
+  animation: logo-neon-breathe 6s ease-in-out infinite;
+}
+
+@keyframes logo-neon-breathe {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .gold-btn {
@@ -250,24 +260,6 @@ html.is-cursor-hidden select {
   }
   .gold-btn:hover .gold-sheen {
     animation: none;
-  }
-}
-
-@keyframes logo-neon-pulse {
-  0%,
-  100% {
-    filter:
-      drop-shadow(0 0 2px rgba(255, 233, 175, 0.55))
-      drop-shadow(0 0 8px rgba(235, 199, 112, 0.34))
-      drop-shadow(0 0 20px rgba(216, 168, 76, 0.24))
-      drop-shadow(0 0 42px rgba(198, 165, 106, 0.15));
-  }
-  50% {
-    filter:
-      drop-shadow(0 0 4px rgba(255, 240, 195, 0.95))
-      drop-shadow(0 0 14px rgba(240, 208, 122, 0.62))
-      drop-shadow(0 0 34px rgba(224, 178, 84, 0.48))
-      drop-shadow(0 0 68px rgba(198, 165, 106, 0.32));
   }
 }
 
@@ -372,4 +364,87 @@ html.is-cursor-hidden select {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Scroll-stage layers.
+ *
+ * Their initial state lives in CSS (not in React inline styles) so the
+ * scroll loop can own these properties without React ever fighting it.
+ * ------------------------------------------------------------------ */
+.scene-layer,
+.film-layer,
+.final-block {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.final-clip {
+  clip-path: inset(0 100% 0 0);
+}
+
+/* Initial state only. Tailwind's scale-x-0 sets the separate `scale`
+   property, which would cancel the scroll loop's inline `transform`. */
+.progress-fill {
+  transform: scaleX(0);
+}
+
+/* The three old full-screen gradient divs collapsed into one layer. */
+.film-overlay {
+  background:
+    linear-gradient(to top, rgba(8, 8, 8, 0.8), rgba(8, 8, 8, 0)) bottom / 100% 33.333% no-repeat,
+    linear-gradient(to left, rgba(8, 8, 8, 0.7), rgba(8, 8, 8, 0.15) 50%, rgba(8, 8, 8, 0.45)),
+    rgba(8, 8, 8, 0.25);
+}
+
+.scroll-hint-line {
+  animation: scroll-hint 2.2s ease-in-out infinite;
+}
+
+.cursor-ring {
+  translate: -50% -50%;
+}
+
+.intro-wrap {
+  contain: paint;
+}
+
+/* Off-screen sections are not laid out or painted until they are approached. */
+.render-defer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Low-power cut: every continuous compositing cost is removed.
+ * ------------------------------------------------------------------ */
+.perf-lite .film-grain {
+  display: none;
+}
+
+.perf-lite * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.perf-lite .scene-layer,
+.perf-lite .cinematic-stage img,
+.perf-lite .cinematic-stage video {
+  filter: none !important;
+}
+
+.perf-lite .logo-neon-img,
+.perf-lite .scroll-hint-line {
+  animation: none;
+}
+
+.perf-lite .will-change-transform {
+  will-change: auto !important;
+}
+
+.perf-lite .cinematic-accent,
+.perf-lite .gold-sheen {
+  display: none;
 }

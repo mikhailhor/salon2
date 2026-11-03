@@ -5,7 +5,7 @@ export default function Footer() {
   const { openBooking, navigateTo } = useSalon();
 
   return (
-    <footer className="relative border-t border-white/8 bg-ink">
+    <footer className="render-defer relative border-t border-white/8 bg-ink">
       <div className="gold-line absolute top-0 right-0 left-0" />
       <div className="mx-auto grid max-w-[1440px] gap-14 px-5 py-20 md:grid-cols-2 md:px-8 lg:grid-cols-4 lg:px-12 lg:py-24">
         <div className="flex flex-col gap-6">
