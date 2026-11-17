@@ -59,23 +59,18 @@ export default function GalleryPage({ initialCategory, initialType, onBack }: Pr
 
   return (
     <div className="min-h-screen bg-ink pt-[64px] sm:pt-[72px] lg:pt-[88px]">
-      {/* نوار بازگشت + بردکرامب — چسبان با بلور */}
-      <div className="sticky top-[64px] z-20 border-b border-white/10 bg-ink/90 backdrop-blur-md sm:top-[72px] lg:top-[88px]">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-12">
-          <div className="flex items-center gap-2 text-xs text-mist">
-            <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-ivory hover:bg-white/10">
-              ← بازگشت به نمونه‌کارها
-            </button>
-            <span className="hidden sm:inline">خانه</span>
-            <span className="hidden sm:inline">›</span>
-            <span className="hidden font-bold text-ivory sm:inline">گالری</span>
-          </div>
+      <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-12">
+        {/* سرصفحه گالری — بدون دکمه (دکمه بازگشت زیر کارت‌ها داخل صفحه قرار دارد) */}
+        <div className="flex items-center justify-between gap-3 text-xs text-mist">
+          <span className="inline-flex items-center gap-2">
+            <span>خانه</span>
+            <span>›</span>
+            <span className="font-bold text-ivory">گالری</span>
+          </span>
           <span className="rounded-full bg-ink-2 px-3 py-1 text-xs text-mist">{visible.length} اثر</span>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
-        <div className="text-right">
+        <div className="mt-6 text-right">
           <h1 className="font-serif text-2xl font-light text-ivory sm:text-3xl lg:text-4xl">گالری آثار لیندا</h1>
           <p className="mt-2 max-w-2xl text-[13px] leading-7 text-ivory-2/80 sm:text-sm">
             با همین فیلترِ دسته از پیش‌نمایش وارد شده‌اید؛ می‌توانید نوع رسانه را تغییر دهید، دسته را عوض کنید، و با «بازگشت» دقیقاً به همان نقطه‌ی قبلی برگردید.
@@ -156,6 +151,19 @@ export default function GalleryPage({ initialCategory, initialType, onBack }: Pr
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {visible.length > 0 && (
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-6 py-3 text-xs font-bold tracking-wide text-ivory transition-colors hover:border-white/25 hover:bg-white/10 active:scale-[0.98]"
+            >
+              <span aria-hidden>→</span>
+              بازگشت به نمونه‌کارها
+            </button>
           </div>
         )}
 
