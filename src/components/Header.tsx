@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { NAV } from "@/data/salon";
 import { useSalon } from "@/context/SalonContext";
+import { useAuth } from "@/context/AuthContext";
 import { useIsMobile, useScrolled } from "@/hooks/useMedia";
 import { GoldButton, IconClose, Logo } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
-export default function Header() {
+export default function Header({ onNavigateView, onOpenAuth, view }: { onNavigateView?: (v: "home" | "admin" | "dashboard") => void; onOpenAuth?: () => void; view?: string }) {
   const {
     cinematic,
     cinematicSupported,
@@ -14,6 +15,7 @@ export default function Header() {
     navigateTo,
     bookingOpen,
   } = useSalon();
+  const { user, isAdmin, logout } = useAuth();
   const scrolled = useScrolled(18);
   const mobile = useIsMobile(1024);
   const [menu, setMenu] = useState(false);
@@ -31,6 +33,10 @@ export default function Header() {
 
   const go = (id: string) => {
     setMenu(false);
+    if (id === "admin" || id === "dashboard") {
+      onNavigateView?.(id as any);
+      return;
+    }
     navigateTo(id);
   };
 
@@ -58,18 +64,29 @@ export default function Header() {
             markClassName="h-[4.25rem] w-auto md:h-20 lg:h-[5.5rem]"
           />
 
-          <nav className="hidden items-center gap-9 lg:flex" aria-label="ناوبری اصلی">
+          <nav className="hidden items-center gap-6 lg:flex" aria-label="ناوبری اصلی">
             {NAV.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 data-cursor="کاوش"
                 onClick={() => go(item.id)}
-                 className="text-[15px] font-bold tracking-[0.32em] text-ivory/80 uppercase transition-colors duration-300 hover:text-champagne"
+                 className="text-[13px] font-bold tracking-[0.28em] text-ivory/80 uppercase transition-colors duration-300 hover:text-champagne"
               >
                 {item.label}
               </button>
             ))}
+            {/* Auth links */}
+            {user ? (
+              <>
+                <button onClick={() => go("dashboard")} className="text-[13px] font-bold tracking-[0.28em] text-champagne uppercase hover:text-ivory">پنل کاربری</button>
+                {isAdmin && <button onClick={() => go("admin")} className="text-[13px] font-bold tracking-[0.28em] text-emerald-300 uppercase hover:text-ivory">مدیریت</button>}
+                <span className="text-xs text-mist">{user.fullName.split(" ")[0]}</span>
+                <button onClick={logout} className="text-xs text-mist hover:text-ivory">خروج</button>
+              </>
+            ) : (
+              <button onClick={() => onOpenAuth?.()} className="rounded-full border border-white/10 px-4 py-1.5 text-xs tracking-[0.15em] text-ivory hover:bg-white/5">ورود / ثبت‌نام</button>
+            )}
           </nav>
 
           <div className="flex items-center gap-3 md:gap-5">
@@ -77,8 +94,6 @@ export default function Header() {
               <CinematicToggle
                 on={cinematic}
                 onChange={setCinematic}
-                /* On a phone the header only has room for the switch itself;
-                   the labelled row lives in the mobile menu. */
                 compact
               />
             )}
@@ -132,6 +147,15 @@ export default function Header() {
               {item.label}
             </button>
           ))}
+          {user ? (
+            <>
+              <button onClick={() => go("dashboard")} className="border-b border-white/8 py-4 text-right font-serif text-2xl text-champagne">پنل کاربری — {user.fullName}</button>
+              {isAdmin && <button onClick={() => go("admin")} className="border-b border-white/8 py-4 text-right font-serif text-2xl text-emerald-300">پنل مدیریت</button>}
+              <button onClick={() => { logout(); setMenu(false); }} className="py-4 text-right text-sm text-mist">خروج</button>
+            </>
+          ) : (
+            <button onClick={() => { setMenu(false); onOpenAuth?.(); }} className="border-b border-white/8 py-4 text-right font-serif text-2xl text-ivory">ورود / ثبت‌نام</button>
+          )}
           {cinematicSupported && (
             <div className="mt-6 flex items-center justify-between border-b border-white/8 py-4">
               <span className="text-[13px] font-bold tracking-[0.28em] text-ivory/80 uppercase">
@@ -180,7 +204,7 @@ function CinematicToggle({
     >
       <span
         className={cn(
-          "text-[16px] font-bold tracking-[0.28em] text-ivory/90 uppercase",
+          "text-[13px] font-bold tracking-[0.28em] text-ivory/90 uppercase",
           compact && "hidden lg:inline",
         )}
       >

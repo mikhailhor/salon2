@@ -6,6 +6,7 @@ import {
   JOURNEY,
   toFaDigits,
 } from "@/data/salon";
+import { useData } from "@/context/DataContext";
 import {
   FILMSTRIP,
   FILM_END_PROGRESS,
@@ -75,7 +76,25 @@ const FILM_STEPS = JOURNEY.filter((step) => step.id !== "final");
 
 export default function CinematicExperience() {
   const { reducedMotion, openBooking, navigateTo } = useSalon();
+  const { categories, services } = useData();
   const quality = useQuality();
+  // Centralized category system: map categories+services to cinematic services for harmonization
+  const cinematicServices = (() => {
+    if (categories && categories.length > 0 && services && services.length > 0) {
+      const mains = categories.filter((c) => !c.parentId && c.isActive).sort((a,b)=>a.order-b.order).slice(0,10);
+      return mains.map((cat, idx) => ({
+        id: cat.id,
+        index: toFaDigits(idx+1).padStart(2,"۰"),
+        name: cat.nameFa,
+        eyebrow: cat.nameEn,
+        description: cat.descriptionFa,
+        image: cat.image,
+        objectPosition: "center center",
+        category: cat.slug as any,
+      }));
+    }
+    return CINEMATIC_SERVICES;
+  })();
   const lite = quality === "lite";
   const mobile = useIsMobile();
   const touch = useIsTouch();
@@ -182,7 +201,7 @@ export default function CinematicExperience() {
       setStyle(frameBRef.current, "opacity", lite ? "0" : mix.toFixed(3));
 
       /* ---- services ---- */
-      const svcCount = CINEMATIC_SERVICES.length;
+      const svcCount = cinematicServices.length;
       const svcFloat = rangeProgress(p, 0.24, 0.62) * svcCount;
       const svcIndex = Math.min(svcCount - 1, Math.floor(svcFloat));
       setStyle(svcBarRef.current, "transform", `scaleX(${(svcFloat % 1).toFixed(3)})`);
@@ -273,7 +292,7 @@ export default function CinematicExperience() {
   });
 
   const activeScene = CINEMATIC_SCENES[state.sceneIndex];
-  const svc = CINEMATIC_SERVICES[state.svcIndex];
+  const svc = cinematicServices[state.svcIndex];
   const jour = JOURNEY[state.jourIndex];
 
   useEffect(() => {
@@ -426,7 +445,7 @@ export default function CinematicExperience() {
           <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-20 lg:px-24">
             <SectionLabel className="mb-4">آتلیه</SectionLabel>
             <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
-              {svc.index} / {toFaDigits(CINEMATIC_SERVICES.length).padStart(2, "۰")}
+              {svc.index} / {toFaDigits(cinematicServices.length).padStart(2, "۰")}
             </p>
             <h2 className="font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-8xl">
               {svc.name}

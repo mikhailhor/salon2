@@ -21,6 +21,7 @@ export interface BookingDraft {
   stylistId: string | null;
   date: string | null;
   time: string | null;
+  jalaliDate?: string | null;
   name: string;
   phone: string;
   email: string;

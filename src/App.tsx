@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { SalonProvider, useSalon } from "@/context/SalonContext";
+import { DataProvider } from "@/context/DataContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { startRuntimeMonitor } from "@/hooks/usePerformance";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -13,25 +15,27 @@ import {
   MobileBookBar,
   StorySections,
 } from "@/components/StandardPage";
-import PortfolioSection from "@/components/PortfolioSection";
-import BookingModal from "@/components/BookingModal";
+import ServiceAtelier from "@/components/atelier/ServiceAtelier";
+import NewLookbook from "@/components/lookbook/NewLookbook";
+import NewBookingModal from "@/components/booking/NewBookingModal";
+import AdminPanel from "@/components/admin/AdminPanel";
+import CustomerDashboard from "@/components/customer/CustomerDashboard";
+import AuthModal from "@/components/auth/AuthModal";
 
 export default function App() {
   return (
-    <SalonProvider>
-      <Root />
-    </SalonProvider>
+    <DataProvider>
+      <AuthProvider>
+        <SalonProvider>
+          <Root />
+        </SalonProvider>
+      </AuthProvider>
+    </DataProvider>
   );
 }
 
-/**
- * Once the curtain is up, watch real frame times. A device that looked capable
- * on paper but cannot hold a smooth frame rate is switched to the cheap cut
- * once, and the choice is remembered for the next visit.
- */
 function PerformanceGuard() {
   const { loaded } = useSalon();
-
   useEffect(() => {
     if (!loaded) return;
     let stop: (() => void) | undefined;
@@ -43,29 +47,61 @@ function PerformanceGuard() {
       stop?.();
     };
   }, [loaded]);
-
   return null;
 }
+
+type View = "home" | "admin" | "dashboard";
 
 function Root() {
   const { cinematic, bookingOpen } = useSalon();
   const [modalMounted, setModalMounted] = useState(false);
+  const [view, setView] = useState<View>("home");
+  const [authOpen, setAuthOpen] = useState(false);
 
-  /** Keep the (large) booking DOM out of the initial page entirely. */
   useEffect(() => {
     if (bookingOpen) setModalMounted(true);
   }, [bookingOpen]);
 
-  /**
-   * While the pinned cinematic track is on screen the page owns the scroll
-   * gesture: this class keeps pull-to-refresh and rubber-banding from
-   * interrupting a touch drag in the middle of a scene.
-   */
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle("cinematic-active", cinematic);
+    root.classList.toggle("cinematic-active", cinematic && view === "home");
     return () => root.classList.remove("cinematic-active");
-  }, [cinematic]);
+  }, [cinematic, view]);
+
+  // handle hash-based navigation for admin/dashboard
+  useEffect(() => {
+    const check = () => {
+      const h = window.location.hash;
+      if (h === "#admin") setView("admin");
+      else if (h === "#dashboard") setView("dashboard");
+      else setView("home");
+    };
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, []);
+
+  const navigateView = (v: View) => {
+    setView(v);
+    if (v === "home") window.location.hash = "";
+    else window.location.hash = v === "admin" ? "#admin" : "#dashboard";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  if (view === "admin") {
+    return (
+      <div dir="rtl" className="min-h-screen bg-ink text-ivory">
+        <AdminPanel onClose={() => navigateView("home")} />
+      </div>
+    );
+  }
+  if (view === "dashboard") {
+    return (
+      <div dir="rtl" className="min-h-screen bg-ink text-ivory">
+        <CustomerDashboard onClose={() => navigateView("home")} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -76,7 +112,7 @@ function Root() {
       <Preloader />
       <div className="film-grain" aria-hidden="true" />
       <CustomCursor />
-      <Header />
+      <Header onNavigateView={navigateView} onOpenAuth={() => setAuthOpen(true)} view={view} />
       <main id="content">
         {cinematic ? (
           <>
@@ -86,13 +122,15 @@ function Root() {
         ) : (
           <StorySections />
         )}
-        <PortfolioSection />
+        <ServiceAtelier />
+        <NewLookbook />
         <AppointmentCta />
         <AboutSection />
       </main>
       <Footer />
       <MobileBookBar />
-      {modalMounted && <BookingModal />}
+      {modalMounted && <NewBookingModal />}
+      {authOpen && <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />}
     </div>
   );
 }

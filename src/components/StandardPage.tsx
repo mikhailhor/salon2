@@ -4,8 +4,8 @@ import {
   CINEMATIC_VIDEO,
   IMAGES,
   JOURNEY,
-  STYLISTS,
 } from "@/data/salon";
+import { useData } from "@/context/DataContext";
 import { useSalon } from "@/context/SalonContext";
 import { useVideoAllowed } from "@/hooks/useMedia";
 import { useNativeVideo } from "@/hooks/useCinematicVideo";
@@ -46,7 +46,6 @@ export function StorySections() {
         </div>
       </section>
 
-      <ServicesBlock />
       <JourneyBlock />
     </>
   );
@@ -168,13 +167,14 @@ export function AppointmentCta() {
 
 export function AboutSection() {
   const { openBooking } = useSalon();
+  const { specialists } = useData();
   return (
     <section id="about" className="render-defer scroll-mt-28 lg:scroll-mt-40 bg-ink py-24 md:py-32">
       <div className="mx-auto grid max-w-[1440px] items-center gap-14 px-5 md:grid-cols-2 md:px-8 lg:px-12">
         <div className="relative aspect-[4/5] overflow-hidden"><img src={IMAGES.interior} alt="فضای داخلی لیندا در شب" className="h-full w-full object-cover" loading="lazy" /></div>
         <div className="max-w-lg text-right"><SectionLabel className="mb-6">درباره ما</SectionLabel><h2 className="font-serif text-4xl font-light text-ivory sm:text-5xl">درباره لیندا</h2><p className="mt-8 text-sm leading-relaxed text-ivory-2/95">یک مزون، نه یک بازار شلوغ. روز را خلوت نگه می‌داریم تا کار بزرگ‌تر باشد؛ چند سیتینگ، چند هنرمند و یک آدرس در قلب صادقیه.</p><p className="mt-5 text-sm leading-relaxed text-ivory-2/90">مو مثل یک ترکیب‌بندی کوتاه می‌شود، رنگ مثل نور نقاشی می‌شود و میکاپ معماری چهره است. عروس، تئاتری خصوصی است؛ شما همان خودتان می‌روید، فقط شفاف‌تر.</p><GoldButton type="button" onClick={() => openBooking()} className="mt-10">اطلاعات بیشتر</GoldButton></div>
       </div>
-      <div className="mx-auto mt-24 max-w-[1440px] px-5 md:px-8 lg:px-12"><SectionLabel className="mb-5">هنرمندان</SectionLabel><h3 className="mb-12 font-serif text-3xl text-ivory sm:text-4xl">چهار دست، یک زبان.</h3><ul className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">{STYLISTS.map((s) => <li key={s.id} className="text-right"><div className="aspect-[3/4] overflow-hidden"><img src={s.image} alt={s.name} className="h-full w-full object-cover" loading="lazy" /></div><p className="mt-4 font-serif text-2xl text-ivory">{s.name}</p><p className="mt-1 text-[16px] tracking-[0.28em] text-champagne">{s.role}</p><p className="mt-3 text-sm leading-relaxed text-ivory-2/90">{s.bio}</p></li>)}</ul></div>
+      <div className="mx-auto mt-24 max-w-[1440px] px-5 md:px-8 lg:px-12"><SectionLabel className="mb-5">هنرمندان</SectionLabel><h3 className="mb-12 font-serif text-3xl text-ivory sm:text-4xl">چهار دست، یک زبان.</h3><ul className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">{specialists.filter((s)=>s.isActive).map((s) => <li key={s.id} className="text-right"><div className="aspect-[3/4] overflow-hidden"><img src={s.image} alt={s.name} className="h-full w-full object-cover" loading="lazy" /></div><p className="mt-4 font-serif text-2xl text-ivory">{s.name}</p><p className="mt-1 text-[16px] tracking-[0.28em] text-champagne">{s.role}</p><p className="mt-3 text-sm leading-relaxed text-ivory-2/90">{s.bio}</p></li>)}</ul></div>
     </section>
   );
 }
