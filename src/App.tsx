@@ -16,7 +16,8 @@ import {
   StorySections,
 } from "@/components/StandardPage";
 import ServiceAtelier from "@/components/atelier/ServiceAtelier";
-import LookbookGallery from "@/components/lookbook/LookbookGallery";
+import LookbookSection from "@/components/lookbook/LookbookSection";
+import GalleryPage from "@/components/lookbook/GalleryPage";
 import NewBookingModal from "@/components/booking/NewBookingModal";
 import AdminPanel from "@/components/admin/AdminPanel";
 import CustomerDashboard from "@/components/customer/CustomerDashboard";
@@ -50,13 +51,23 @@ function PerformanceGuard() {
   return null;
 }
 
-type View = "home" | "admin" | "dashboard";
+type View = "home" | "admin" | "dashboard" | "gallery";
 
 function Root() {
   const { cinematic, bookingOpen } = useSalon();
   const [modalMounted, setModalMounted] = useState(false);
   const [view, setView] = useState<View>("home");
   const [authOpen, setAuthOpen] = useState(false);
+  const [galleryParams, setGalleryParams] = useState<{ cat: string | null; type: string }>(() => {
+    const h = typeof window !== "undefined" ? window.location.hash : "";
+    if (h.startsWith("#gallery")) {
+      const q = h.includes("?") ? h.split("?")[1] : "";
+      const p = new URLSearchParams(q);
+      return { cat: p.get("cat"), type: p.get("type") || "" };
+    }
+    return { cat: null, type: "" };
+  });
+  const homeReturnRef = useState<{ y: number }>(() => ({ y: 0 }))[0];
 
   useEffect(() => {
     if (bookingOpen) setModalMounted(true);
@@ -68,11 +79,16 @@ function Root() {
     return () => root.classList.remove("cinematic-active");
   }, [cinematic, view]);
 
-  // handle hash-based navigation for admin/dashboard
+  // handle hash-based navigation for admin/dashboard/gallery
   useEffect(() => {
     const check = () => {
       const h = window.location.hash;
-      if (h === "#admin") setView("admin");
+      if (h.startsWith("#gallery")) {
+        const q = h.includes("?") ? h.split("?")[1] : "";
+        const p = new URLSearchParams(q);
+        setGalleryParams({ cat: p.get("cat"), type: p.get("type") || "" });
+        setView("gallery");
+      } else if (h === "#admin") setView("admin");
       else if (h === "#dashboard") setView("dashboard");
       else setView("home");
     };
@@ -83,9 +99,44 @@ function Root() {
 
   const navigateView = (v: View) => {
     setView(v);
-    if (v === "home") window.location.hash = "";
-    else window.location.hash = v === "admin" ? "#admin" : "#dashboard";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (v === "home") {
+      window.location.hash = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (v === "gallery") {
+      // handled via openGallery
+    } else {
+      window.location.hash = v === "admin" ? "#admin" : "#dashboard";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const openGallery = (cat: string | null, type?: string) => {
+    homeReturnRef.y = window.scrollY;
+    const params = new URLSearchParams();
+    if (cat) params.set("cat", cat);
+    if (type) params.set("type", type);
+    const qs = params.toString();
+    window.location.hash = qs ? `#gallery?${qs}` : "#gallery";
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  };
+
+  const backFromGallery = () => {
+    // اگر تاریخچه دارد، back کن تا به همان اسکرول قبلی نزدیک بمانیم
+    if (window.history.length > 1) {
+      window.history.back();
+      // تضمین بازگشت بصری به بخش نمونه‌کارها
+      window.setTimeout(() => {
+        const el = document.getElementById("portfolio");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        else window.scrollTo({ top: homeReturnRef.y || 0, behavior: "smooth" });
+      }, 250);
+    } else {
+      navigateView("home");
+      window.setTimeout(() => {
+        const el = document.getElementById("portfolio");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
   };
 
   if (view === "admin") {
@@ -103,6 +154,18 @@ function Root() {
     );
   }
 
+  if (view === "gallery") {
+    return (
+      <div dir="rtl" className="min-h-screen bg-ink text-ivory">
+        <Header onNavigateView={navigateView as any} onOpenAuth={() => setAuthOpen(true)} view={view} />
+        <GalleryPage initialCategory={galleryParams.cat} initialType={galleryParams.type as any} onBack={backFromGallery} />
+        <Footer />
+        {modalMounted && <NewBookingModal />}
+        {authOpen && <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />}
+      </div>
+    );
+  }
+
   return (
     <div
       dir="rtl"
@@ -112,7 +175,7 @@ function Root() {
       <Preloader />
       <div className="film-grain" aria-hidden="true" />
       <CustomCursor />
-      <Header onNavigateView={navigateView} onOpenAuth={() => setAuthOpen(true)} view={view} />
+      <Header onNavigateView={navigateView as any} onOpenAuth={() => setAuthOpen(true)} view={view} />
       <main id="content">
         {cinematic ? (
           <>
@@ -123,7 +186,7 @@ function Root() {
           <StorySections />
         )}
         <ServiceAtelier />
-        <LookbookGallery />
+        <LookbookSection onOpenGallery={openGallery} />
         <AppointmentCta />
         <AboutSection />
       </main>
