@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { fromJalali, toJalali, JALALI_MONTHS, JALALI_WEEKDAYS, getJalaliMonthDays, formatJalali, isJalaliLeap } from "@/lib/jalali";
+import { fromJalali, toJalali, JALALI_MONTHS, JALALI_WEEKDAYS, getJalaliMonthDays, formatJalali } from "@/lib/jalali";
+import { toFaDigits } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 interface Props {
@@ -23,9 +24,8 @@ export function JalaliCalendar({ value, onChange, disabledDates, holidays }: Pro
 
   const daysInMonth = getJalaliMonthDays(cursor.jy, cursor.jm);
   const firstDayDate = fromJalali(cursor.jy, cursor.jm, 1);
-  // Persian week: Sat=0 .. Fri=6. Need offset for grid
-  const jsDay = firstDayDate.getDay(); // 0 Sun ..6 Sat
-  const persianIndex = (jsDay + 1) % 7; // Sat=0
+  const jsDay = firstDayDate.getDay();
+  const persianIndex = (jsDay + 1) % 7;
   const startPad = persianIndex;
 
   const cells: Array<{ day: number | null; iso: string | null; date: Date | null }> = [];
@@ -56,19 +56,19 @@ export function JalaliCalendar({ value, onChange, disabledDates, holidays }: Pro
   };
 
   return (
-    <div className="max-w-md rounded-xl border border-white/10 bg-ink-2 p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <button type="button" onClick={goPrev} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-ivory hover:bg-white/5">‹</button>
-        <p className="font-serif text-xl text-ivory">{JALALI_MONTHS[cursor.jm - 1]} {cursor.jy}</p>
-        <button type="button" onClick={goNext} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-ivory hover:bg-white/5">›</button>
+    <div className="w-full rounded-2xl border border-white/10 bg-ink-2 p-3 sm:p-4">
+      <div className="mb-3 flex items-center justify-between sm:mb-4">
+        <button type="button" onClick={goPrev} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-ivory transition-colors hover:bg-white/5 active:scale-95">‹</button>
+        <p className="font-serif text-base text-ivory sm:text-xl">{JALALI_MONTHS[cursor.jm - 1]} {toFaDigits(cursor.jy)}</p>
+        <button type="button" onClick={goNext} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-ivory transition-colors hover:bg-white/5 active:scale-95">›</button>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[12px] tracking-[0.15em] text-mist">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[11px] tracking-[0.12em] text-mist sm:gap-1 sm:text-xs">
         {JALALI_WEEKDAYS.map((d) => (
-          <div key={d} className="py-2 font-bold">{d.slice(0, 1)}</div>
+          <div key={d} className="py-2 font-bold text-[10px] sm:text-xs">{d.slice(0, 1)}</div>
         ))}
         {cells.map((c, i) => {
           if (!c.day) return <div key={`e-${i}`} />;
-          const isClosed = isPast(c.date!) || c.date!.getDay() === 5; // Friday closed (JS Fri=5)
+          const isClosed = isPast(c.date!) || c.date!.getDay() === 5;
           const isHoliday = holidays?.has(c.iso!) || false;
           const isDisabled = isClosed || isHoliday || disabledDates?.has(c.iso!) || false;
           const selected = value === c.iso;
@@ -80,27 +80,29 @@ export function JalaliCalendar({ value, onChange, disabledDates, holidays }: Pro
               disabled={isDisabled}
               onClick={() => onChange(c.iso!)}
               className={cn(
-                "relative aspect-square rounded-lg text-sm transition-colors",
+                "relative flex aspect-square items-center justify-center rounded-xl text-[13px] transition-all sm:rounded-lg sm:text-sm",
                 isDisabled && "cursor-not-allowed text-white/15",
-                !isDisabled && !selected && "text-ivory hover:bg-white/10",
-                selected && "bg-champagne text-ink font-bold",
+                !isDisabled && !selected && "text-ivory hover:bg-white/10 active:scale-90",
+                selected && "bg-champagne font-bold text-ink shadow-[0_2px_8px_rgba(198,165,106,0.4)]",
                 isToday && !selected && "ring-1 ring-champagne/50"
               )}
             >
-              {c.day}
-              {isHoliday && <span className="absolute bottom-0 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-red-400" />}
+              {toFaDigits(c.day!)}
+              {isHoliday && <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-red-400" />}
             </button>
           );
         })}
       </div>
-      <p className="mt-3 text-xs leading-relaxed text-mist">
-        روزهای جمعه تعطیل هستند. تاریخ‌های گذشته قابل انتخاب نیستند. تقویم شمسی است و در دیتابیس به صورت میلادی ذخیره می‌شود.
-      </p>
-      {value && (
-        <p className="mt-2 text-xs text-champagne">
-          انتخاب: {formatJalali(new Date(`${value}T12:00:00`))}
+      <div className="mt-3 rounded-xl bg-ink-3 p-2.5 sm:mt-4 sm:p-3">
+        <p className="text-xs leading-5 text-mist sm:leading-relaxed">
+          جمعه‌ها تعطیل · تاریخ‌های گذشته قابل انتخاب نیست
         </p>
-      )}
+        {value && (
+          <p className="mt-1 text-xs font-bold text-champagne">
+            ✓ {formatJalali(new Date(`${value}T12:00:00`))}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

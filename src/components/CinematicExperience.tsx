@@ -382,9 +382,9 @@ export default function CinematicExperience() {
 
         {/* SCENE 01 — HERO */}
         <div ref={heroSceneRef} className="scene-layer absolute inset-0">
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:justify-center md:px-16 md:pb-24 lg:px-24 lg:pb-0">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] text-right px-5 sm:px-6 md:justify-center md:px-16 md:pb-24 lg:px-24 lg:pb-0">
             <SectionLabel className="mb-6">آرامش زیبایی تهران</SectionLabel>
-            <h1 className="max-w-[12ch] font-serif text-[2.6rem] leading-[1.12] font-light text-ivory sm:text-6xl md:text-7xl lg:text-8xl">
+            <h1 className="max-w-[12ch] font-serif text-[1.7rem] leading-[1.15] font-light text-ivory text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
               <RevealWords text="زیبایی، از نو تعریف می‌شود." active={state.heroText} />
             </h1>
             <p
@@ -409,10 +409,10 @@ export default function CinematicExperience() {
 
         {/* SCENE 02 — BRAND */}
         <div ref={brandSceneRef} className="scene-layer absolute inset-0">
-          <div className="relative z-10 flex h-full items-end px-5 pt-20 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:items-center md:px-16 md:pb-20 lg:px-24">
+          <div className="relative z-10 flex h-full items-end px-4 pt-16 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] text-right px-5 sm:px-6 md:items-center md:px-16 md:pb-20 lg:px-24">
             <div className="max-w-xl">
               <SectionLabel className="mb-6">مزون</SectionLabel>
-              <h2 className="font-serif text-[2.1rem] leading-[1.12] font-light text-ivory sm:text-5xl lg:text-6xl">
+              <h2 className="font-serif text-[1.5rem] leading-[1.15] font-light text-ivory text-[1.8rem] sm:text-4xl md:text-5xl lg:text-6xl">
                 <RevealWords
                   text="جایی که زیبایی به یک تجربه تبدیل می‌شود"
                   active={state.brandText}
@@ -442,12 +442,12 @@ export default function CinematicExperience() {
             alt="آرت ناخن در نور آتلیه"
             className="cinematic-accent absolute inset-0 h-full w-full object-cover"
           />
-          <div className="relative z-10 flex h-full flex-col items-end justify-end px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-right sm:px-6 md:px-16 md:pb-20 lg:px-24">
+          <div className="relative z-10 flex h-full flex-col items-end justify-end px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] text-right px-5 sm:px-6 md:px-16 md:pb-20 lg:px-24">
             <SectionLabel className="mb-4">آتلیه</SectionLabel>
             <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
               {svc.index} / {toFaDigits(cinematicServices.length).padStart(2, "۰")}
             </p>
-            <h2 className="font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-8xl">
+            <h2 className="font-serif text-[1.6rem] leading-[1.1] font-light text-ivory text-[1.9rem] sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
               {svc.name}
             </h2>
             <p className="mt-2 text-[15px] tracking-[0.32em] text-champagne uppercase">
@@ -514,7 +514,7 @@ export default function CinematicExperience() {
             <p className="mb-2 font-sans text-[16px] tracking-[0.4em] text-ivory/80">
               {jour.index} / ۰۵
             </p>
-            <h2 className="font-serif text-[2.5rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
+            <h2 className="font-serif text-[1.6rem] leading-[1.1] font-light text-ivory text-[1.8rem] sm:text-5xl md:text-6xl lg:text-7xl">
               {jour.title}
             </h2>
             <p className="mt-3 max-w-md font-serif text-lg text-champagne sm:text-2xl">
@@ -548,7 +548,7 @@ export default function CinematicExperience() {
           <div className="absolute inset-0 bg-ink/60" />
           <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 text-center md:pb-0">
             <SectionLabel className="mb-6">دعوت</SectionLabel>
-            <h2 className="max-w-[14ch] font-serif text-[2.6rem] leading-[1.1] font-light text-ivory sm:text-6xl lg:text-7xl">
+            <h2 className="max-w-[14ch] font-serif text-[1.7rem] leading-[1.1] font-light text-ivory text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl">
               <RevealWords text="صندلی شما منتظر است." active={state.finaleText} />
             </h2>
             <p className="mt-6 max-w-md text-sm leading-relaxed text-ivory-2/95">
@@ -571,7 +571,7 @@ export default function CinematicExperience() {
         </div>
 
         {/* Scene rail — compact, thumb-reachable version for phones/tablets */}
-        <ol className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 lg:hidden">
+        <ol className="absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 sm:gap-2.5 lg:hidden">
           {CINEMATIC_SCENES.map((s) => {
             const on = activeScene.id === s.id;
             return (
@@ -581,7 +581,7 @@ export default function CinematicExperience() {
                   onClick={() => goScene(s.start)}
                   aria-current={on}
                   aria-label={`صحنه ${s.index} ${s.label}`}
-                  className="flex h-8 w-7 items-center justify-center"
+                  className="flex h-9 w-8 items-center justify-center sm:h-8 sm:w-7"
                 >
                   <span
                     className={cn(

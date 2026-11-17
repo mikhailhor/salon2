@@ -108,7 +108,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   });
   const [lookbook, setLookbook] = useState<LookbookItem[]>(() => {
     const stored = loadFromStorage<LookbookItem[] | null>(STORAGE_KEYS.lookbook, null);
-    if (stored && stored.length > 0) return stored;
+    if (stored && stored.length > 0) {
+      // migration: اگر آیتم قدیمی بدون mediaType بود، به beforeAfter تبدیل شود
+      return stored.map((item: any) => {
+        if (!item.mediaType) {
+          if (item.beforeImage && item.afterImage) return { ...item, mediaType: "beforeAfter" as const };
+          if (item.beforeImage || item.image) return { ...item, mediaType: "single" as const, image: item.image || item.afterImage || item.beforeImage };
+          return { ...item, mediaType: "single" as const, image: item.beforeImage || "/images/hero/hero-01.jpg" };
+        }
+        return item;
+      });
+    }
     return seedLookbook();
   });
   const [bookings, setBookings] = useState<Booking[]>(() => loadFromStorage(STORAGE_KEYS.bookings, [] as Booking[]));
@@ -309,6 +319,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [logAudit]);
 
   const addLookbook = useCallback((l: Partial<LookbookItem>) => {
+    const mediaType = (l.mediaType as any) || "single";
     const item: LookbookItem = {
       id: l.id || uid("lb"),
       titleFa: l.titleFa || "نمونه‌کار جدید",
@@ -317,8 +328,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       subCategoryId: l.subCategoryId || null,
       serviceId: l.serviceId || null,
       serviceName: l.serviceName || "",
-      beforeImage: l.beforeImage || "/images/hero/hero-01.jpg",
-      afterImage: l.afterImage || "/images/services/color.jpg",
+      mediaType,
+      image: l.image || (mediaType === "single" ? "/images/hero/hero-01.jpg" : undefined),
+      beforeImage: l.beforeImage || (mediaType === "beforeAfter" ? "/images/hero/hero-01.jpg" : undefined),
+      afterImage: l.afterImage || (mediaType === "beforeAfter" ? "/images/services/color.jpg" : undefined),
+      videoUrl: l.videoUrl || (mediaType === "video" ? "/cinematic2.mp4" : undefined),
+      videoThumbnail: l.videoThumbnail || (mediaType === "video" ? "/images/hero/hero-01.jpg" : undefined),
       featured: l.featured ?? false,
       isActive: l.isActive ?? true,
       order: l.order ?? lookbook.length + 1,
@@ -339,20 +354,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [logAudit]);
 
   const getAvailableSlots = useCallback((date: string, specialistId: string) => {
-    const booked = bookings
-      .filter((b) => b.date === date && b.specialistId === specialistId && !["cancelled", "rejected"].includes(b.status))
-      .map((b) => b.timeSlot);
+    if (!specialistId) return TIME_SLOTS;
     const sp = specialists.find((s) => s.id === specialistId);
     const capacity = sp?.capacityPerSlot ?? 1;
-    // count bookings per slot
+    if (sp && date) {
+      try {
+        const d = new Date(`${date}T12:00:00`);
+        const persianIdx = (d.getDay() + 1) % 7; // Sat=0
+        const wh = sp.workingHours?.find((w) => w.dayOfWeek === persianIdx);
+        if (wh && !wh.isWorking) return [];
+      } catch { /* ignore */ }
+    }
+    if (date && settings.holidays?.includes(date)) return [];
+
     const counts: Record<string, number> = {};
     bookings
       .filter((b) => b.date === date && b.specialistId === specialistId && !["cancelled", "rejected"].includes(b.status))
       .forEach((b) => {
         counts[b.timeSlot] = (counts[b.timeSlot] || 0) + 1;
       });
-    return TIME_SLOTS.filter((slot) => (counts[slot] || 0) < capacity);
-  }, [bookings, specialists]);
+    const available = TIME_SLOTS.filter((slot) => (counts[slot] || 0) < capacity);
+    if (available.length === 0 && Object.keys(counts).length === 0) return TIME_SLOTS;
+    return available;
+  }, [bookings, specialists, settings.holidays]);
 
   const createBooking = useCallback((b: Omit<Booking, "id" | "createdAt" | "updatedAt">) => {
     // atomic capacity check
