@@ -120,23 +120,41 @@ function Root() {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   };
 
-  const backFromGallery = () => {
-    // اگر تاریخچه دارد، back کن تا به همان اسکرول قبلی نزدیک بمانیم
-    if (window.history.length > 1) {
-      window.history.back();
-      // تضمین بازگشت بصری به بخش نمونه‌کارها
-      window.setTimeout(() => {
+  // برای تشخیص بازگشت از گالری به خانه و اسکرول به نمونه‌کارها
+  const prevViewRef = useState<{ v: View }>(() => ({ v: "home" }))[0];
+  useEffect(() => {
+    // وقتی از گالری به خانه برمی‌گردیم (چه با دکمه چه با browser back) به سکشن نمونه‌کارها اسکرول کن
+    if (prevViewRef.v === "gallery" && view === "home") {
+      const doScroll = () => {
         const el = document.getElementById("portfolio");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         else window.scrollTo({ top: homeReturnRef.y || 0, behavior: "smooth" });
-      }, 250);
-    } else {
-      navigateView("home");
-      window.setTimeout(() => {
-        const el = document.getElementById("portfolio");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      };
+      // دو فریم صبر کن تا DOM خانه رندر شود
+      requestAnimationFrame(() => requestAnimationFrame(() => window.setTimeout(doScroll, 80)));
     }
+    prevViewRef.v = view;
+  }, [view]);
+
+  const backFromGallery = () => {
+    // فقط هش را پاک کن؛ hashchange به‌صورت متمرکز view را به home و اسکرول را مدیریت می‌کند
+    // اگر history موجود باشد، این کار یک entry جدید نمی‌سازد (replace) تا back مرورگر هم درست بماند
+    const hadGalleryHash = window.location.hash.startsWith("#gallery");
+    if (hadGalleryHash) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      // به‌صورت دستی hashchange را شبیه‌سازی کن چون replaceState رویداد نمی‌دهد
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+      // اگر replace کار نکرد (برخی مرورگرها)، fallback
+      if (window.location.hash) window.location.hash = "";
+    } else {
+      window.location.hash = "";
+    }
+    // اسکرول اصلی در useEffect بالا انجام می‌شود؛ یک fallback فوری هم بگذار
+    window.setTimeout(() => {
+      if (view !== "gallery") return;
+      const el = document.getElementById("portfolio");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 300);
   };
 
   if (view === "admin") {
