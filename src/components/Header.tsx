@@ -6,7 +6,7 @@ import { useIsMobile, useScrolled } from "@/hooks/useMedia";
 import { GoldButton, IconClose, Logo } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 
-export default function Header({ onNavigateView, onOpenAuth, view }: { onNavigateView?: (v: "home" | "admin" | "dashboard") => void; onOpenAuth?: () => void; view?: string }) {
+export default function Header({ onNavigateView, onOpenAuth, view }: { onNavigateView?: (v: "home" | "admin" | "dashboard" | "gallery") => void; onOpenAuth?: () => void; view?: string }) {
   const {
     cinematic,
     cinematicSupported,
@@ -35,6 +35,16 @@ export default function Header({ onNavigateView, onOpenAuth, view }: { onNavigat
     setMenu(false);
     if (id === "admin" || id === "dashboard") {
       onNavigateView?.(id as any);
+      return;
+    }
+    // اگر در صفحه گالری هستیم و کاربر روی بخش‌های خانه کلیک کرد، به خانه برگرد و سپس اسکرول کن
+    if (view === "gallery") {
+      window.location.hash = "";
+      window.setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        else window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 120);
       return;
     }
     navigateTo(id);
