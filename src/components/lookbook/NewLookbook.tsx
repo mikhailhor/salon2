@@ -71,7 +71,13 @@ export default function NewLookbook() {
             return (
               <div key={item.id} className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink transition-all hover:border-white/15 hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
                 <div className="relative overflow-hidden">
-                  <BeforeAfterSlider before={item.beforeImage} after={item.afterImage} className="aspect-[4/3] sm:aspect-[4/3]" />
+                  {item.mediaType === "video" ? (
+                    item.videoUrl ? <video src={item.videoUrl} poster={item.videoThumbnail} controls className="aspect-[4/3] w-full object-cover" /> : <div className="aspect-[4/3] bg-ink-2" />
+                  ) : item.mediaType === "single" ? (
+                    item.image ? <img src={item.image} alt={item.titleFa} className="aspect-[4/3] w-full object-cover" /> : <div className="aspect-[4/3] bg-ink-2" />
+                  ) : (
+                    <BeforeAfterSlider before={item.beforeImage || ""} after={item.afterImage || ""} className="aspect-[4/3] sm:aspect-[4/3]" />
+                  )}
                   {item.featured && <span className="absolute top-3 right-3 rounded-full bg-champagne px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-ink shadow-lg">ویژه</span>}
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/60 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100 sm:hidden">
                     <p className="text-center text-xs text-ivory">👆 بکشید تا مقایسه کنید</p>
@@ -116,19 +122,27 @@ export default function NewLookbook() {
             </div>
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6">
               <div className="overflow-hidden rounded-xl">
-                <BeforeAfterSlider before={selectedItem.beforeImage} after={selectedItem.afterImage} className="aspect-[4/3] sm:aspect-[16/10]" />
+                {selectedItem.mediaType === "video" ? (
+                  selectedItem.videoUrl ? <video src={selectedItem.videoUrl} poster={selectedItem.videoThumbnail} controls className="aspect-[4/3] w-full object-contain bg-black sm:aspect-[16/10]" /> : null
+                ) : selectedItem.mediaType === "single" ? (
+                  selectedItem.image ? <img src={selectedItem.image} alt={selectedItem.titleFa} className="aspect-[4/3] w-full object-cover sm:aspect-[16/10]" /> : null
+                ) : (
+                  <BeforeAfterSlider before={selectedItem.beforeImage || ""} after={selectedItem.afterImage || ""} className="aspect-[4/3] sm:aspect-[16/10]" />
+                )}
               </div>
               {selectedItem.description && <p className="mt-4 text-[13px] leading-7 text-ivory-2/90 sm:text-sm sm:leading-relaxed">{selectedItem.description}</p>}
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/10 bg-ink-2 p-3">
-                  <p className="text-xs font-bold tracking-[0.12em] text-mist">تصویر قبل</p>
-                  <img src={selectedItem.beforeImage} alt="قبل" className="mt-2 aspect-[4/3] w-full rounded-lg object-cover" />
+              {selectedItem.mediaType === "beforeAfter" && (
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-ink-2 p-3">
+                    <p className="text-xs font-bold tracking-[0.12em] text-mist">تصویر قبل</p>
+                    <img src={selectedItem.beforeImage} alt="قبل" className="mt-2 aspect-[4/3] w-full rounded-lg object-cover" />
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-ink-2 p-3">
+                    <p className="text-xs font-bold tracking-[0.12em] text-mist">تصویر بعد</p>
+                    <img src={selectedItem.afterImage} alt="بعد" className="mt-2 aspect-[4/3] w-full rounded-lg object-cover" />
+                  </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-ink-2 p-3">
-                  <p className="text-xs font-bold tracking-[0.12em] text-mist">تصویر بعد</p>
-                  <img src={selectedItem.afterImage} alt="بعد" className="mt-2 aspect-[4/3] w-full rounded-lg object-cover" />
-                </div>
-              </div>
+              )}
             </div>
             <div className="border-t border-white/10 p-4 sm:p-6">
               <button onClick={() => setSelected(null)} className="w-full rounded-full bg-champagne py-3.5 text-sm font-bold tracking-[0.15em] text-ink">بستن</button>

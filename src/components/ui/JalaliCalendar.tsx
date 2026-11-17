@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { fromJalali, toJalali, JALALI_MONTHS, JALALI_WEEKDAYS, getJalaliMonthDays, formatJalali } from "@/lib/jalali";
+import { toFaDigits } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 interface Props {
@@ -58,7 +59,7 @@ export function JalaliCalendar({ value, onChange, disabledDates, holidays }: Pro
     <div className="w-full rounded-2xl border border-white/10 bg-ink-2 p-3 sm:p-4">
       <div className="mb-3 flex items-center justify-between sm:mb-4">
         <button type="button" onClick={goPrev} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-ivory transition-colors hover:bg-white/5 active:scale-95">‹</button>
-        <p className="font-serif text-base text-ivory sm:text-xl">{JALALI_MONTHS[cursor.jm - 1]} {cursor.jy}</p>
+        <p className="font-serif text-base text-ivory sm:text-xl">{JALALI_MONTHS[cursor.jm - 1]} {toFaDigits(cursor.jy)}</p>
         <button type="button" onClick={goNext} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-ivory transition-colors hover:bg-white/5 active:scale-95">›</button>
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center text-[11px] tracking-[0.12em] text-mist sm:gap-1 sm:text-xs">
@@ -86,7 +87,7 @@ export function JalaliCalendar({ value, onChange, disabledDates, holidays }: Pro
                 isToday && !selected && "ring-1 ring-champagne/50"
               )}
             >
-              {c.day}
+              {toFaDigits(c.day!)}
               {isHoliday && <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-red-400" />}
             </button>
           );

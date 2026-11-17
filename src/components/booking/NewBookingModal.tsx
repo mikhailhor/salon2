@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { GoldButton, GhostButton, IconClose, SectionLabel } from "@/components/primitives";
 import { cn } from "@/utils/cn";
 import { JalaliCalendar } from "@/components/ui/JalaliCalendar";
-import { formatToman, calcDeposit, formatDuration, TIME_SLOTS } from "@/lib/format";
+import { formatToman, calcDeposit, formatDuration, TIME_SLOTS, toFaDigits } from "@/lib/format";
 import { toJalaliString } from "@/lib/jalali";
 
 const STEPS = ["دسته‌بندی", "خدمت", "متخصص", "تاریخ و ساعت", "اطلاعات", "تأیید"] as const;
@@ -50,7 +50,9 @@ export default function NewBookingModal() {
 
   const specialistsForService = useMemo(() => {
     if (!selectedService) return specialists.filter((s) => s.isActive);
-    return specialists.filter((s) => s.isActive && (s.categoryIds.includes(selectedService.categoryId) || s.categoryIds.includes(selectedService.subCategoryId || "")));
+    const filtered = specialists.filter((s) => s.isActive && (s.categoryIds.includes(selectedService.categoryId) || s.categoryIds.includes(selectedService.subCategoryId || "")));
+    // اگر هیچ متخصصی با این دسته لینک نشده، همه متخصصان فعال را نشان بده تا کاربر گیر نکند
+    return filtered.length > 0 ? filtered : specialists.filter((s) => s.isActive);
   }, [selectedService, specialists]);
 
   const availableSlots = useMemo(() => {
@@ -177,7 +179,7 @@ export default function NewBookingModal() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-champagne text-ink">✓</div>
               <p className="mt-4 font-serif text-2xl text-ivory sm:text-3xl">رزرو شما ثبت شد!</p>
               <p className="mt-3 text-sm leading-7 text-ivory-2/90">
-                {selectedService?.nameFa} در تاریخ {booking.date} ساعت {booking.time}
+                {selectedService?.nameFa} در تاریخ {booking.date ? toJalaliString(new Date(`${booking.date}T12:00:00`)) : booking.date} ساعت {toFaDigits(booking.time || "")}
                 {depositAmount > 0 ? ` — بیعانه ${formatToman(depositAmount)} برای تأیید نهایی` : " — همکاران ما به زودی تماس می‌گیرند."}
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -329,6 +331,7 @@ export default function NewBookingModal() {
                         <JalaliCalendar
                           value={booking.date}
                           onChange={(iso) => setBooking({ date: iso, time: null })}
+                          holidays={settings.holidays ? new Set(settings.holidays) : undefined}
                         />
                         <div>
                           <p className="mb-3 text-sm font-bold text-ivory">ساعت‌های آزاد</p>
@@ -360,7 +363,7 @@ export default function NewBookingModal() {
                                       isSelected && "border-champagne bg-champagne font-bold text-ink shadow-[0_2px_8px_rgba(198,165,106,0.3)]"
                                     )}
                                   >
-                                    {t}
+                                    {toFaDigits(t)}
                                   </button>
                                 );
                               })}
@@ -369,7 +372,7 @@ export default function NewBookingModal() {
                           {booking.date && booking.time && (
                             <div className="mt-4 rounded-2xl border border-champagne/20 bg-champagne/10 p-4">
                               <p className="text-xs font-bold text-champagne">✓ انتخاب شما</p>
-                              <p className="mt-1 text-sm text-ivory">{booking.date} ساعت {booking.time}</p>
+                              <p className="mt-1 text-sm text-ivory">{toJalaliString(new Date(`${booking.date}T12:00:00`))} — ساعت {toFaDigits(booking.time)}</p>
                             </div>
                           )}
                         </div>
@@ -400,8 +403,8 @@ export default function NewBookingModal() {
                           ["دسته‌بندی", categories.find((c) => c.id === selectedService?.categoryId)?.nameFa || "—"],
                           ["خدمت", selectedService?.nameFa || "—"],
                           ["متخصص", selectedSpecialist?.name || "—"],
-                          ["تاریخ", booking.date ? `${booking.date} (${toJalaliString(new Date(`${booking.date}T12:00:00`))})` : "—"],
-                          ["ساعت", booking.time || "—"],
+                          ["تاریخ", booking.date ? `${toJalaliString(new Date(`${booking.date}T12:00:00`))}` : "—"],
+                          ["ساعت", booking.time ? toFaDigits(booking.time) : "—"],
                           ["مدت", selectedService ? formatDuration(selectedService.durationMinutes) : "—"],
                           ["هزینه کل", formatToman(totalPrice)],
                           ["بیعانه", depositAmount > 0 ? formatToman(depositAmount) : "بدون بیعانه"],

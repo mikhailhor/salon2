@@ -16,7 +16,7 @@ import {
   StorySections,
 } from "@/components/StandardPage";
 import ServiceAtelier from "@/components/atelier/ServiceAtelier";
-import NewLookbook from "@/components/lookbook/NewLookbook";
+import LookbookGallery from "@/components/lookbook/LookbookGallery";
 import NewBookingModal from "@/components/booking/NewBookingModal";
 import AdminPanel from "@/components/admin/AdminPanel";
 import CustomerDashboard from "@/components/customer/CustomerDashboard";
@@ -123,7 +123,7 @@ function Root() {
           <StorySections />
         )}
         <ServiceAtelier />
-        <NewLookbook />
+        <LookbookGallery />
         <AppointmentCta />
         <AboutSection />
       </main>

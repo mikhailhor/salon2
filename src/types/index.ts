@@ -129,6 +129,8 @@ export interface BeautyHistory {
   status: "completed" | "in_progress";
 }
 
+export type LookbookMediaType = "single" | "beforeAfter" | "video";
+
 export interface LookbookItem {
   id: string;
   titleFa: string;
@@ -138,8 +140,16 @@ export interface LookbookItem {
   subCategoryId?: string | null;
   serviceId?: string | null;
   serviceName?: string;
-  beforeImage: string;
-  afterImage: string;
+  mediaType: LookbookMediaType;
+  // single
+  image?: string;
+  // beforeAfter
+  beforeImage?: string;
+  afterImage?: string;
+  // video
+  videoUrl?: string;
+  videoThumbnail?: string;
+  // legacy compat - keep optional for migration
   featured: boolean;
   isActive: boolean;
   order: number;

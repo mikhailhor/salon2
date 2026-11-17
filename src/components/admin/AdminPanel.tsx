@@ -355,28 +355,73 @@ function LookbookTab() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<any>({});
   const [showAdd, setShowAdd] = useState(false);
+  const mediaTypes: { id: string; label: string }[] = [
+    { id: "single", label: "تک‌عکس" },
+    { id: "beforeAfter", label: "قبل / بعد" },
+    { id: "video", label: "ویدیو" },
+  ];
+
+  const onFileToDataUrl = (file: File, field: string, thumbField?: string) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      if (thumbField) setForm((prev: any) => ({ ...prev, [field]: result, [thumbField]: prev[thumbField] || result }));
+      else setForm((prev: any) => ({ ...prev, [field]: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between">
-        <h2 className="font-serif text-xl text-ivory">لُک‌بوک</h2>
-        <button onClick={() => setShowAdd(true)} className="rounded-full bg-champagne px-4 py-2 text-xs font-bold text-ink">+ نمونه‌کار</button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-xl text-ivory">گالری نمونه‌کارها</h2>
+          <p className="mt-1 text-xs text-mist">هر آیتم می‌تواند تک‌عکس، قبل/بعد یا ویدیو باشد؛ هر تصویر قابل آپلود و فیلترپذیر است.</p>
+        </div>
+        <button onClick={() => { setForm({ mediaType: "single", titleFa: "", categoryId: categories[0]?.id, isActive: true, featured: false }); setShowAdd(true); }} className="rounded-full bg-champagne px-4 py-2 text-xs font-bold text-ink">+ افزودن به گالری</button>
       </div>
+
       {showAdd && (
         <div className="rounded-xl border border-champagne/20 bg-champagne/5 p-4">
-          <h4 className="font-bold text-ivory">افزودن نمونه‌کار</h4>
+          <h4 className="font-bold text-ivory">افزودن به گالری</h4>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             <input placeholder="عنوان فارسی" value={form.titleFa || ""} onChange={(e) => setForm({ ...form, titleFa: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
+            <input placeholder="توضیح کوتاه" value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
             <select value={form.categoryId || ""} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory">
               <option value="">دسته</option>
               {categories.filter((c) => !c.parentId).map((c) => <option key={c.id} value={c.id}>{c.nameFa}</option>)}
             </select>
-            <input placeholder="تصویر قبل URL" value={form.beforeImage || ""} onChange={(e) => setForm({ ...form, beforeImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
-            <input placeholder="تصویر بعد URL" value={form.afterImage || ""} onChange={(e) => setForm({ ...form, afterImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
             <select value={form.serviceId || ""} onChange={(e) => setForm({ ...form, serviceId: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory">
-              <option value="">خدمت (اختیاری)</option>
+              <option value="">خدمت مرتبط (اختیاری)</option>
               {services.map((s) => <option key={s.id} value={s.id}>{s.nameFa}</option>)}
             </select>
+            <select value={form.mediaType || "single"} onChange={(e) => setForm({ ...form, mediaType: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory">
+              {mediaTypes.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
             <label className="flex items-center gap-1 text-xs text-mist"><input type="checkbox" checked={form.featured || false} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> ویژه</label>
+
+            {(form.mediaType === "single" || !form.mediaType) && (
+              <>
+                <input placeholder="تصویر URL" value={form.image || ""} onChange={(e) => setForm({ ...form, image: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
+                <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود تصویر<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "image")} className="mt-1 block w-full text-xs" /></label>
+              </>
+            )}
+            {form.mediaType === "beforeAfter" && (
+              <>
+                <input placeholder="تصویر قبل URL" value={form.beforeImage || ""} onChange={(e) => setForm({ ...form, beforeImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
+                <input placeholder="تصویر بعد URL" value={form.afterImage || ""} onChange={(e) => setForm({ ...form, afterImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
+                <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود قبل<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "beforeImage")} className="mt-1 block w-full text-xs" /></label>
+                <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود بعد<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "afterImage")} className="mt-1 block w-full text-xs" /></label>
+              </>
+            )}
+            {form.mediaType === "video" && (
+              <>
+                <input placeholder="آدرس ویدیو URL / مسیر" value={form.videoUrl || ""} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
+                <input placeholder="کاور ویدیو URL" value={form.videoThumbnail || ""} onChange={(e) => setForm({ ...form, videoThumbnail: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
+                <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود ویدیو<input type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "videoUrl")} className="mt-1 block w-full text-xs" /></label>
+                <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود کاور<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "videoThumbnail")} className="mt-1 block w-full text-xs" /></label>
+              </>
+            )}
           </div>
           <div className="mt-3 flex gap-2">
             <button onClick={() => { addLookbook(form); setShowAdd(false); setForm({}); }} className="rounded bg-champagne px-4 py-1 text-xs font-bold text-ink">ذخیره</button>
@@ -384,17 +429,45 @@ function LookbookTab() {
           </div>
         </div>
       )}
+
       <div className="grid gap-3 md:grid-cols-2">
-        {lookbook.map((item) => {
+        {lookbook
+          .slice()
+          .sort((a, b) => a.order - b.order)
+          .map((item) => {
           const cat = categories.find((c) => c.id === item.categoryId);
           const isEditing = editing === item.id;
           return (
             <div key={item.id} className="rounded-xl border border-white/10 bg-ink-2 p-3">
               {isEditing ? (
                 <div className="grid gap-2">
-                  <input value={form.titleFa} onChange={(e) => setForm({ ...form, titleFa: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" />
-                  <input value={form.beforeImage} onChange={(e) => setForm({ ...form, beforeImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="قبل" />
-                  <input value={form.afterImage} onChange={(e) => setForm({ ...form, afterImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="بعد" />
+                  <input value={form.titleFa || ""} onChange={(e) => setForm({ ...form, titleFa: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="عنوان" />
+                  <input value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="توضیح" />
+                  <select value={form.mediaType || "single"} onChange={(e) => setForm({ ...form, mediaType: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory">
+                    {mediaTypes.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                  {(form.mediaType === "single" || !form.mediaType) && (
+                    <>
+                      <input value={form.image || ""} onChange={(e) => setForm({ ...form, image: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="تک‌عکس URL" />
+                      <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "image")} className="mt-1 block w-full text-xs" /></label>
+                    </>
+                  )}
+                  {form.mediaType === "beforeAfter" && (
+                    <>
+                      <input value={form.beforeImage || ""} onChange={(e) => setForm({ ...form, beforeImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="قبل URL" />
+                      <input value={form.afterImage || ""} onChange={(e) => setForm({ ...form, afterImage: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="بعد URL" />
+                      <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود قبل<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "beforeImage")} className="mt-1 block w-full text-xs" /></label>
+                      <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود بعد<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "afterImage")} className="mt-1 block w-full text-xs" /></label>
+                    </>
+                  )}
+                  {form.mediaType === "video" && (
+                    <>
+                      <input value={form.videoUrl || ""} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="ویدیو URL" />
+                      <input value={form.videoThumbnail || ""} onChange={(e) => setForm({ ...form, videoThumbnail: e.target.value })} className="rounded bg-ink-3 p-2 text-sm text-ivory" placeholder="کاور URL" />
+                      <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود ویدیو<input type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "videoUrl")} className="mt-1 block w-full text-xs" /></label>
+                      <label className="rounded bg-ink-3 p-2 text-xs text-mist">آپلود کاور<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onFileToDataUrl(e.target.files[0], "videoThumbnail")} className="mt-1 block w-full text-xs" /></label>
+                    </>
+                  )}
                   <div className="flex gap-2">
                     <button onClick={() => { updateLookbook(item.id, form); setEditing(null); }} className="rounded bg-champagne px-3 py-1 text-xs font-bold text-ink">ذخیره</button>
                     <button onClick={() => setEditing(null)} className="rounded border border-white/10 px-3 py-1 text-xs text-ivory">انصراف</button>
@@ -402,13 +475,22 @@ function LookbookTab() {
                 </div>
               ) : (
                 <>
-                  <div className="flex gap-2">
-                    <img src={item.beforeImage} alt="before" className="h-20 w-1/2 rounded object-cover" />
-                    <img src={item.afterImage} alt="after" className="h-20 w-1/2 rounded object-cover" />
-                  </div>
-                  <p className="mt-2 text-sm font-bold text-ivory">{item.titleFa} <span className="text-xs text-mist">· {cat?.nameFa}</span></p>
-                  <p className="text-xs text-ivory-2/80">{item.description}</p>
-                  <div className="mt-2 flex gap-2">
+                  {item.mediaType === "single" && item.image && <img src={item.image} alt={item.titleFa} className="h-32 w-full rounded object-cover" />}
+                  {item.mediaType === "beforeAfter" && (
+                    <div className="flex gap-2">
+                      <img src={item.beforeImage} alt="before" className="h-20 w-1/2 rounded object-cover" />
+                      <img src={item.afterImage} alt="after" className="h-20 w-1/2 rounded object-cover" />
+                    </div>
+                  )}
+                  {item.mediaType === "video" && (
+                    <div className="relative overflow-hidden rounded">
+                      {item.videoThumbnail ? <img src={item.videoThumbnail} alt={item.titleFa} className="h-32 w-full object-cover opacity-80" /> : <div className="h-32 w-full bg-ink-3" />}
+                      <span className="absolute inset-0 flex items-center justify-center text-lg">▶</span>
+                    </div>
+                  )}
+                  <p className="mt-2 text-sm font-bold text-ivory">{item.titleFa} <span className="text-xs text-mist">· {cat?.nameFa}</span> <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-mist">{mediaTypes.find((m) => m.id === item.mediaType)?.label}</span></p>
+                  {item.description && <p className="text-xs text-ivory-2/80 line-clamp-2">{item.description}</p>}
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button onClick={() => { setForm(item); setEditing(item.id); }} className="rounded border border-white/10 px-2 py-1 text-xs text-ivory">ویرایش</button>
                     <button onClick={() => deleteLookbook(item.id)} className="rounded bg-red-500/10 px-2 py-1 text-xs text-red-300">حذف</button>
                     <button onClick={() => updateLookbook(item.id, { featured: !item.featured })} className="rounded border border-white/10 px-2 py-1 text-xs text-ivory">{item.featured ? "حذف ویژه" : "ویژه کن"}</button>
