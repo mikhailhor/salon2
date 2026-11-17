@@ -81,7 +81,8 @@ export default function LookbookSection({ onOpenGallery }: Props) {
               <button type="button" onClick={() => onOpenGallery(selectedCat)} className="mt-4 inline-flex rounded-full bg-white/5 px-5 py-2.5 text-xs font-bold text-ivory hover:bg-white/10">مشاهده گالری همین دسته →</button>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+            <>
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
               {/* مدیا */}
               <div className="relative overflow-hidden">
                 {previewItem.mediaType === "beforeAfter" && previewItem.beforeImage && previewItem.afterImage ? (
@@ -115,14 +116,16 @@ export default function LookbookSection({ onOpenGallery }: Props) {
                   <p className="mt-2 inline-flex rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-ivory-2/90">{previewItem.serviceName}</p>
                 )}
 
-                <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                  <GoldButton type="button" onClick={() => onOpenGallery(selectedCat)} className="w-full justify-center py-3.5 text-xs tracking-[0.16em] sm:w-auto sm:px-7">
-                    مشاهده گالری — {selectedCategory?.nameFa}
-                  </GoldButton>
-                  <p className="text-center text-[11px] tracking-wide text-mist sm:text-right">ورودی گالری همین دسته با همین فیلتر باز می‌شود</p>
-                </div>
               </div>
             </div>
+            {/* دکمه زیر کارت — داخل صفحه (نه داخل کارت و نه داخل نوبار) */}
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <GoldButton type="button" onClick={() => onOpenGallery(selectedCat)} className="w-full justify-center py-3.5 text-xs tracking-[0.16em] sm:w-auto sm:px-8">
+                  مشاهده گالری — {selectedCategory?.nameFa}
+                </GoldButton>
+                <p className="text-center text-[11px] tracking-wide text-mist">ورودی گالری همین دسته با همین فیلتر باز می‌شود</p>
+              </div>
+            </>
           )}
         </div>
 

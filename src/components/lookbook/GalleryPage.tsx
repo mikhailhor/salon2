@@ -60,26 +60,14 @@ export default function GalleryPage({ initialCategory, initialType, onBack }: Pr
   return (
     <div className="min-h-screen bg-ink pt-[64px] sm:pt-[72px] lg:pt-[88px]">
       <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-12">
-        {/* ردیف بازگشت — جای درست: بالای عنوان، راست‌چین، touch-target استاندارد، خارج از هدر چسبان */}
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-xs font-bold tracking-[0.08em] text-ivory backdrop-blur-sm transition-colors hover:border-white/25 hover:bg-white/10 active:scale-[0.98]"
-            aria-label="بازگشت به بخش نمونه کارها"
-          >
-            <span className="text-base leading-none" aria-hidden>
-              →
-            </span>
-            بازگشت به نمونه‌کارها
-          </button>
-          <span className="hidden items-center gap-2 text-xs text-mist sm:inline-flex">
+        {/* سرصفحه گالری — بدون دکمه (دکمه بازگشت زیر کارت‌ها داخل صفحه قرار دارد) */}
+        <div className="flex items-center justify-between gap-3 text-xs text-mist">
+          <span className="inline-flex items-center gap-2">
             <span>خانه</span>
             <span>›</span>
             <span className="font-bold text-ivory">گالری</span>
-            <span className="mr-2 rounded-full bg-ink-2 px-2.5 py-1 text-[11px]">{visible.length} اثر</span>
           </span>
-          <span className="rounded-full bg-ink-2 px-3 py-1 text-xs text-mist sm:hidden">{visible.length} اثر</span>
+          <span className="rounded-full bg-ink-2 px-3 py-1 text-xs text-mist">{visible.length} اثر</span>
         </div>
 
         <div className="mt-6 text-right">
