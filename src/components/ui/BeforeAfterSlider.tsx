@@ -15,6 +15,7 @@ export default function BeforeAfterSlider({
 }) {
   const [pos, setPos] = useState(50);
   const [dragging, setDragging] = useState(false);
+  const [isHover, setIsHover] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const updatePos = useCallback((clientX: number) => {
@@ -22,7 +23,7 @@ export default function BeforeAfterSlider({
     if (!rect) return;
     const x = clientX - rect.left;
     const pct = (x / rect.width) * 100;
-    setPos(Math.max(2, Math.min(98, pct)));
+    setPos(Math.max(4, Math.min(96, pct)));
   }, []);
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
@@ -47,56 +48,44 @@ export default function BeforeAfterSlider({
       ref={containerRef}
       className={`relative select-none overflow-hidden bg-ink-3 ${className}`}
       onPointerDown={(e) => {
+        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
         setDragging(true);
         updatePos(e.clientX);
       }}
-      onClick={(e) => updatePos((e as any).clientX)}
+      onPointerEnter={() => setIsHover(true)}
+      onPointerLeave={() => setIsHover(false)}
       style={{ touchAction: "none" }}
     >
-      {/* After image (full) */}
       <img src={after} alt={altAfter} className="absolute inset-0 h-full w-full object-cover" loading="lazy" draggable={false} />
-      {/* Before image clipped */}
-      <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-        <img
-          src={before}
-          alt={altBefore}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ width: `calc(100vw)`, maxWidth: "none" }}
-          loading="lazy"
-          draggable={false}
-        />
-        {/* Fix width trick: make inner image same size as container but clipped */}
-        <div className="absolute inset-0">
-          <img src={before} alt={altBefore} className="h-full w-full object-cover" style={{ width: `${100 / (pos / 100)}%` }} loading="lazy" draggable={false} />
-        </div>
-      </div>
-
-      {/* Simpler correct approach: use clipPath */}
       <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
         <img src={before} alt={altBefore} className="h-full w-full object-cover" loading="lazy" draggable={false} />
       </div>
 
-      {/* Divider line */}
+      {/* خط جداکننده */}
       <div
-        className="absolute top-0 bottom-0 w-0.5 bg-champagne shadow-[0_0_8px_rgba(198,165,106,0.6)]"
+        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.5)]"
         style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
       >
-        <div className="absolute top-1/2 left-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-champagne bg-ink/80 backdrop-blur-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-champagne">
-            <path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M9 12l-3 3 3 3M15 12l3 3-3 3" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+        <div className="absolute top-1/2 left-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-champagne shadow-[0_4px_12px_rgba(0,0,0,0.4)] transition-transform sm:h-10 sm:w-10"
+             style={{ transform: `translate(-50%, -50%) scale(${dragging || isHover ? 1.1 : 1})` }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-ink">
+            <path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </div>
       </div>
 
-      <span className="absolute bottom-3 left-3 rounded-full bg-ink/70 px-3 py-1 text-[11px] tracking-[0.2em] text-ivory backdrop-blur-sm">بعد</span>
-      <span className="absolute bottom-3 right-3 rounded-full bg-ink/70 px-3 py-1 text-[11px] tracking-[0.2em] text-ivory backdrop-blur-sm">قبل</span>
+      <span className="absolute bottom-2 left-2 rounded-full bg-ink/80 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-ivory backdrop-blur-sm sm:bottom-3 sm:left-3 sm:px-3 sm:text-[11px]">بعد</span>
+      <span className="absolute bottom-2 right-2 rounded-full bg-ink/80 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-ivory backdrop-blur-sm sm:bottom-3 sm:right-3 sm:px-3 sm:text-[11px]">قبل</span>
 
-      {/* Keyboard accessibility */}
+      {/* hint برای موبایل */}
+      <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center sm:hidden">
+        <span className="rounded-full bg-ink/70 px-3 py-1 text-[10px] tracking-[0.12em] text-ivory/90 backdrop-blur-sm">‹ بکشید ›</span>
+      </div>
+
       <div className="sr-only" role="slider" aria-valuenow={Math.round(pos)} aria-valuemin={0} aria-valuemax={100} tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "ArrowLeft") setPos((p) => Math.min(98, p + 5));
-          if (e.key === "ArrowRight") setPos((p) => Math.max(2, p - 5));
+          if (e.key === "ArrowLeft") setPos((p) => Math.min(96, p + 5));
+          if (e.key === "ArrowRight") setPos((p) => Math.max(4, p - 5));
         }}
       />
     </div>

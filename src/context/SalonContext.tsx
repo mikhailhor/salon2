@@ -62,25 +62,45 @@ const SalonContext = createContext<SalonContextValue | null>(null);
 export function SalonProvider({ children }: { children: ReactNode }) {
   const reducedMotion = usePrefersReducedMotion();
   const capable = useCinematicCapable();
-  const [cinematicPref, setCinematicPref] = useState(true);
+  const [cinematicPref, setCinematicPref] = useState<boolean>(() => {
+    // اولویت نمایش بر اساس سایز صفحه: موبایل → استاندارد، دسکتاپ → سینمایی
+    // اگر کاربر قبلاً انتخابی ذخیره کرده، همان اولویت دارد
+    try {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("solene-cinematic") : null;
+      if (stored === "off") return false;
+      if (stored === "on") return true;
+      if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+        // < 1024px = small/tablet → non-cinematic, >=1024 = cinematic
+        return window.matchMedia("(min-width: 1024px)").matches;
+      }
+    } catch {
+      /* ignore */
+    }
+    return true;
+  });
   const [bookingOpen, setBookingOpen] = useState(false);
   const [booking, setBookingState] = useState<BookingDraft>(EMPTY_BOOKING);
   const [loaded, setLoaded] = useState(false);
 
   /**
-   * Cinematic mode runs on every device class — phone, tablet and desktop —
-   * in a form tuned for the input it gets (scroll-scrubbed video on desktop,
-   * native playback on touch). Only viewports too short to show a scene drop
-   * back to the natively scrolling page.
+   * حالت سینمایی روی هر دستگاهی اجرا می‌شود اما اولویت اولیه با سایز صفحه است:
+   * - موبایل و تبلت کوچک (<1024px) → حالت استاندارد (سبک‌تر، دسترسی سریع‌تر)
+   * - دسکتاپ و تبلت بزرگ (>=1024px) → حالت سینمایی
+   * کاربر با سوییچ می‌تواند هر زمان تغییر دهد و انتخابش ذخیره می‌شود.
    */
   const cinematicSupported = capable;
   const cinematic = cinematicPref && cinematicSupported;
 
+  // اگر کاربر هنوز انتخابی ذخیره نکرده، تغییر سایز صفحه اولویت را به‌روز می‌کند
   useEffect(() => {
     try {
       const stored = localStorage.getItem("solene-cinematic");
-      if (stored === "off") setCinematicPref(false);
-      if (stored === "on") setCinematicPref(true);
+      if (stored) return; // کاربر قبلاً انتخاب کرده → احترام به انتخاب
+      if (typeof window.matchMedia !== "function") return;
+      const mq = window.matchMedia("(min-width: 1024px)");
+      const onChange = () => setCinematicPref(mq.matches);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
     } catch {
       /* ignore */
     }

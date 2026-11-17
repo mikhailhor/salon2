@@ -44,7 +44,7 @@ export default function AdminPanel({ onClose }: { onClose?: () => void }) {
 
   return (
     <div className="min-h-screen bg-ink text-ivory">
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-ink px-4 py-3">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-ink px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3">
           <span className="rounded-full bg-champagne px-3 py-1 text-xs font-bold text-ink">پنل مدیریت لیندا</span>
           <span className="hidden text-xs text-mist md:inline">مدیر: {user.fullName}</span>
@@ -77,7 +77,7 @@ export default function AdminPanel({ onClose }: { onClose?: () => void }) {
             ))}
           </div>
 
-          <div className="p-4 md:p-6 lg:p-8">
+          <div className="p-4 sm:p-6 lg:p-8">
             {tab === "dashboard" && <DashboardTab stats={stats} />}
             {tab === "categories" && <CategoriesTab />}
             {tab === "services" && <ServicesTab />}
@@ -115,7 +115,7 @@ function DashboardTab({ stats }: { stats: any }) {
   return (
     <div className="space-y-6">
       <h2 className="font-serif text-2xl text-ivory">داشبورد مدیریتی</h2>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: "کل رزروها", value: stats.totalBookings },
           { label: "رزروهای امروز", value: stats.todayBookings },
@@ -670,7 +670,7 @@ function MediaTab() {
         {preview && <img src={preview} alt="preview" className="mt-3 h-24 w-24 rounded object-cover" />}
         <button onClick={handleUpload} className="mt-3 rounded-full bg-champagne px-4 py-2 text-xs font-bold text-ink">افزودن به کتابخانه</button>
       </div>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {media.map((m) => (
           <div key={m.id} className="rounded-xl border border-white/10 bg-ink-2 p-2">
             <img src={m.url} alt={m.altText} className="aspect-square w-full rounded-lg object-cover" loading="lazy" />
